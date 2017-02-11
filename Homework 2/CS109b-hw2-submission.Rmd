@@ -1,0 +1,116 @@
+---
+title: "CS109b Homework 2 Submission"
+author: "Ihsaan Patel"
+date: "February 11, 2017"
+output: pdf_document
+---
+
+# Helper Functions
+
+```{r helper_functions}
+library(ggplot2)
+library(gam)
+library(boot)
+
+# Function to compute k-fold cross-validation accuracy for a given classification model
+cv_accuracy = function(data, param_val, k) {
+  # Input: 
+  #   'model' - a fitted classification model
+  #   'data' - data frame with training data set used to fit the model
+  #   'k' - number of folds for CV
+  # Output:
+  #   'cv_accuracy' - cross-validation accuracy for the model
+  
+  num_param = length(param_val) # Number of parameters
+  cv_acc = rep(0., num_param)
+  
+  # Iterate over parameter values
+  for(i in 1:num_param){
+    gam_formula <- as.formula(sprintf("HeartDisease ~ s(Age, spar=%1$f) + Sex + s(RestBP,spar=%1$f) + ExAng + ChestPain + Thal", param_val[i]))
+    model <- gam(gam_formula, family = binomial(link = "logit"), data = data)
+    acc <- 1 - cv.glm(data, model, K = k)$delta[1]
+    cv_acc[i] <- acc
+  }
+  return(cv_acc)
+}
+
+```
+
+# Problem 1: Heart Disease Diagnosis
+
+## Visual Inspection of Data
+
+```{r load_data}
+# Load data
+train_dataset1 <- read.table("dataset_1_train.txt",header = TRUE, sep = ",")
+test_dataset1 <- read.table("dataset_1_test.txt",header = TRUE, sep = ",")
+
+# Plot and visualize Age
+ggplot(train_dataset1, mapping = aes(x = Age , fill = HeartDisease)) + geom_histogram(binwidth=1, alpha=.5, position="identity") + ggtitle("Age & Heart Disease")
+```
+
+Older people appear to have much higher incidents of heart disease, particularly between the ages of 55 and 70.
+
+```{r plot_sex}
+# Plot and visualize Sex
+ggplot(train_dataset1, mapping = aes(x = Sex, fill = HeartDisease)) + geom_bar(position = "dodge") + ggtitle("Sex & Heart Disease")
+```
+
+There appears to be a much higher incidence of heart disease in one of the sexes
+
+```{r plot_chest_pain}
+# Plot and visualize Chest Pain
+ggplot(train_dataset1, mapping = aes(x = ChestPain, fill = HeartDisease)) + geom_bar(position = "dodge") + ggtitle("Sex & Heart Disease")
+```
+
+There's a much higher incidence of heart disease in individuals with asymptomatic chest pain.
+
+```{r plot_rest_bp}
+# Plot and visualize RestBP
+ggplot(train_dataset1, mapping = aes(x = RestBP, fill = HeartDisease)) + geom_histogram( alpha=.5, position="identity") + ggtitle("RestBP & Heart Disease")
+```
+Higher values of resting BP appear to be associated with heart disease
+
+```{r plot_ex_ang}
+# Plot and visualize ExAng
+ggplot(train_dataset1, mapping = aes(x = ExAng, fill = HeartDisease)) + geom_bar(position = "dodge") + ggtitle("ExAng & Heart Disease")
+```
+
+People who have ExAng appeart to have a much higher incidence of heart disease
+
+```{r plot_thal}
+# Plot and visualize Thal
+ggplot(train_dataset1, mapping = aes(x = Thal, fill = HeartDisease)) + geom_bar(position = "dodge") + ggtitle("Thal & Heart Disease")
+```
+
+People  with both fixed and particularly reversable Thal have much incidences of heart disease
+
+## GAM Model
+
+```{r cv_gam_model, warning=FALSE}
+# Tune smoothing parameter through k-fold cross validation
+spar_to_validate <- c(1.:100.)/100.
+gam_cv_scores <- cv_accuracy(train_dataset1, spar_to_validate, 5)
+spar_gam_max_parameter <- spar_to_validate[which.max(gam_cv_scores)]
+ggplot(data = data.frame(parameter = spar_to_validate, parameter_score = gam_cv_scores), aes(x = parameter, y = parameter_score, group = 1)) + geom_line() + geom_point() + ggtitle(sprintf("Smoothing Cross Validation | Max Parameter: %.2f", spar_gam_max_parameter))
+
+```
+
+```{r fit_gam_model, warning=False}
+gam_formula <- as.formula(sprintf("HeartDisease ~ s(Age, spar=%1$f) + Sex + s(RestBP,spar=%1$f) + ExAng + ChestPain + Thal", spar_gam_max_parameter))
+
+model.gams <- glm(gam_formula, family = binomial(link = "logit"), data = train_dataset1)
+
+pred.gams <- predict(model.gams, newdata = test_dataset1, type = "response")
+cm.gams <- as.matrix(table(Actual = test_dataset1$HeartDisease, Predicted = pred.gams>.5))
+accuracy.gams <- sum(diag(cm.gams))/ sum(cm.gams)
+
+print(sprintf("GAM Model Classification Accuracy: %.4f", accuracy.gams))
+```
+* The smoothing spline basis cannot be applied to categorical predictors because the weighted average would produce either the predictors actual value or some meaningless value between predictors. For instance, if 0 represents male and 1 represents female, and a weighted average produced .8, this would not be useful as it doesn't correspond to either male or female.
+* R appears to one-hot encode categorical predictors automatically whereas this needed to be done manually in sklearn in Python
+
+```{r plot_gam_smooth}
+plot(model.gams)
+
+```
