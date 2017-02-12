@@ -99,7 +99,7 @@ ggplot(data = data.frame(parameter = spar_to_validate, parameter_score = gam_cv_
 ```{r fit_gam_model, warning=False}
 gam_formula <- as.formula(sprintf("HeartDisease ~ s(Age, spar=%1$f) + Sex + s(RestBP,spar=%1$f) + ExAng + ChestPain + Thal", spar_gam_max_parameter))
 
-model.gams <- glm(gam_formula, family = binomial(link = "logit"), data = train_dataset1)
+model.gams <- gam(gam_formula, family = binomial(link = "logit"), data = train_dataset1)
 
 pred.gams <- predict(model.gams, newdata = test_dataset1, type = "response")
 cm.gams <- as.matrix(table(Actual = test_dataset1$HeartDisease, Predicted = pred.gams>.5))
@@ -110,7 +110,39 @@ print(sprintf("GAM Model Classification Accuracy: %.4f", accuracy.gams))
 * The smoothing spline basis cannot be applied to categorical predictors because the weighted average would produce either the predictors actual value or some meaningless value between predictors. For instance, if 0 represents male and 1 represents female, and a weighted average produced .8, this would not be useful as it doesn't correspond to either male or female.
 * R appears to one-hot encode categorical predictors automatically whereas this needed to be done manually in sklearn in Python
 
-```{r plot_gam_smooth}
-plot(model.gams)
+## Predictor Smoothing
 
+```{r plot_gam_smooth}
+plot.gam(model.gams, se = TRUE, terms = c(sprintf("s(Age, spar = %.2f)",spar_gam_max_parameter), sprintf("s(RestBP, spar = %.2f)",spar_gam_max_parameter)))
 ```
+
+There doesn't appear to be any benefit smoothing the splines due to the large standard errors for non-zero coefficient values.
+
+## Likelihood Tests
+
+### (i) GAM with only Intercept
+
+```{r gam_with_intercept}
+model.gami <- gam(HeartDisease ~ 1, family = binomial(link = "logit"), data = train_dataset1)
+anova(model.gams, model.gami, test = "Chi")
+```
+
+The gam model that includes all predictors with smoothing on the continuous ones performs better than the gam model with only the intercept at a significance level of 0.001.
+
+### (ii) GAM with Categorical
+
+```{r gam_with_intercept}
+model.gamcat <- gam(HeartDisease ~ Sex + ChestPain + ExAng + Thal, family = binomial(link = "logit"), data = train_dataset1)
+anova(model.gams, model.gamcat, test = "Chi")
+```
+
+The gam model that includes all predictors with smoothing on the continuous ones performs better than the gam model with only categorical predictors at a significance level of 0.05.
+
+### (iii) GAM with Linear Predictors
+
+```{r gam_with_intercept}
+model.gamlin <- gam(HeartDisease ~ Age + Sex + ChestPain + RestBP + ExAng + Thal, family = binomial(link = "logit"), data = train_dataset1)
+anova(model.gams, model.gamlin, test = "Chi")
+```
+
+The gam model that includes all predictors with smoothing on the continuous ones performs better than the gam model with all predictors entered linearly, however the improvement is not statistically significant.
