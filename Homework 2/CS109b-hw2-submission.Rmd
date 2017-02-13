@@ -146,3 +146,10 @@ anova(model.gams, model.gamlin, test = "Chi")
 ```
 
 The gam model that includes all predictors with smoothing on the continuous ones performs better than the gam model with all predictors entered linearly, however the improvement is not statistically significant.
+
+# Problem 2: The Malaria Report
+
+```{r load_malaria_data}
+gdppercapita_dataset <- read.table("malaria_data/global-gdppercapita-byYear.csv",header = TRUE, sep = ",")
+
+```
