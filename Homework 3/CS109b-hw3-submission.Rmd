@@ -1,0 +1,38 @@
+---
+title: "Homework 3"
+author: "Ihsaan Patel"
+date: "February 18, 2017"
+output: pdf_document
+---
+
+# Library
+
+```{r libraries}
+library(e1071)
+```
+
+# Problem 1: Authorship Attribution
+
+```{r load_datasets_1}
+# Load preprocessed words to label columns
+words_preprocessed <- scan("words_preprocessed.txt", what = character(),sep = "")
+dataset1_column_names <- c("author", words_preprocessed)
+
+# Load training and testing data, passing the preprocessed words as column names
+dataset1_train <- read.table("dataset1_train_processed_subset.txt", header = FALSE, sep = ",", col.names = dataset1_column_names)
+dataset1_test <- read.table("dataset1_test_processed_subset.txt",header = FALSE, sep = ",", col.names = dataset1_column_names)
+```
+
+## Part 1a: Naive Bayes Classifier
+
+```{r fit_naive_bayes}
+# fit and predict naive bayes models
+model.nb <- naiveBayes(author ~ ., data = dataset1_train)
+pred.nb <- predict(model.nb, dataset1_test, type = "class")
+
+table.nb <- table(pred.nb, dataset1_test$author)
+accuracy.nb <- sum(diag(table.nb))/ sum(table.nb)
+print(sprintf("Naive Bayes Model Accuracy: %.2f", accuracy.nb))
+```
+
+Naive Bayes assumes that one word 

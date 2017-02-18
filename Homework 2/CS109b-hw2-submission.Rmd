@@ -5,9 +5,9 @@ date: "February 11, 2017"
 output: pdf_document
 ---
 
-# Helper Functions
+# Libraries & Helper Functions
 
-```{r helper_functions}
+```{r helper_functions, message=FALSE}
 library(ggplot2)
 library(gam)
 library(boot)
@@ -15,14 +15,14 @@ library(boot)
 # Function to compute k-fold cross-validation accuracy for a given classification model
 cv_accuracy = function(data, param_val, k) {
   # Input: 
-  #   'model' - a fitted classification model
   #   'data' - data frame with training data set used to fit the model
+  #   'param_val' - list with parameter values to tune through cross-validation
   #   'k' - number of folds for CV
   # Output:
-  #   'cv_accuracy' - cross-validation accuracy for the model
+  #   'cv_acc' - array of model accuracies for the different parameters
   
   num_param = length(param_val) # Number of parameters
-  cv_acc = rep(0., num_param)
+  cv_acc = rep(0., num_param) # list to store model accuracies
   
   # Iterate over parameter values
   for(i in 1:num_param){
@@ -44,13 +44,17 @@ cv_accuracy = function(data, param_val, k) {
 # Load data
 train_dataset1 <- read.table("dataset_1_train.txt",header = TRUE, sep = ",")
 test_dataset1 <- read.table("dataset_1_test.txt",header = TRUE, sep = ",")
+```
 
+### Age
+```{r plot_age}
 # Plot and visualize Age
 ggplot(train_dataset1, mapping = aes(x = Age , fill = HeartDisease)) + geom_histogram(binwidth=1, alpha=.5, position="identity") + ggtitle("Age & Heart Disease")
 ```
 
 Older people appear to have much higher incidents of heart disease, particularly between the ages of 55 and 70.
 
+### Sex
 ```{r plot_sex}
 # Plot and visualize Sex
 ggplot(train_dataset1, mapping = aes(x = Sex, fill = HeartDisease)) + geom_bar(position = "dodge") + ggtitle("Sex & Heart Disease")
@@ -58,19 +62,22 @@ ggplot(train_dataset1, mapping = aes(x = Sex, fill = HeartDisease)) + geom_bar(p
 
 There appears to be a much higher incidence of heart disease in one of the sexes
 
+### ChestPain
 ```{r plot_chest_pain}
 # Plot and visualize Chest Pain
-ggplot(train_dataset1, mapping = aes(x = ChestPain, fill = HeartDisease)) + geom_bar(position = "dodge") + ggtitle("Sex & Heart Disease")
+ggplot(train_dataset1, mapping = aes(x = ChestPain, fill = HeartDisease)) + geom_bar(position = "dodge") + ggtitle("ChestPain & Heart Disease")
 ```
 
 There's a much higher incidence of heart disease in individuals with asymptomatic chest pain.
 
+### RestBP
 ```{r plot_rest_bp}
 # Plot and visualize RestBP
 ggplot(train_dataset1, mapping = aes(x = RestBP, fill = HeartDisease)) + geom_histogram( alpha=.5, position="identity") + ggtitle("RestBP & Heart Disease")
 ```
 Higher values of resting BP appear to be associated with heart disease
 
+### ExAng
 ```{r plot_ex_ang}
 # Plot and visualize ExAng
 ggplot(train_dataset1, mapping = aes(x = ExAng, fill = HeartDisease)) + geom_bar(position = "dodge") + ggtitle("ExAng & Heart Disease")
@@ -78,6 +85,7 @@ ggplot(train_dataset1, mapping = aes(x = ExAng, fill = HeartDisease)) + geom_bar
 
 People who have ExAng appeart to have a much higher incidence of heart disease
 
+### Thal
 ```{r plot_thal}
 # Plot and visualize Thal
 ggplot(train_dataset1, mapping = aes(x = Thal, fill = HeartDisease)) + geom_bar(position = "dodge") + ggtitle("Thal & Heart Disease")
@@ -96,11 +104,13 @@ ggplot(data = data.frame(parameter = spar_to_validate, parameter_score = gam_cv_
 
 ```
 
-```{r fit_gam_model, warning=False}
+```{r fit_gam_model, warning=FALSE}
+# Fit gam model with tuned smoothing parameter
 gam_formula <- as.formula(sprintf("HeartDisease ~ s(Age, spar=%1$f) + Sex + s(RestBP,spar=%1$f) + ExAng + ChestPain + Thal", spar_gam_max_parameter))
 
 model.gams <- gam(gam_formula, family = binomial(link = "logit"), data = train_dataset1)
 
+# Predict classification on test set and print the model's accuracy
 pred.gams <- predict(model.gams, newdata = test_dataset1, type = "response")
 cm.gams <- as.matrix(table(Actual = test_dataset1$HeartDisease, Predicted = pred.gams>.5))
 accuracy.gams <- sum(diag(cm.gams))/ sum(cm.gams)
@@ -113,6 +123,7 @@ print(sprintf("GAM Model Classification Accuracy: %.4f", accuracy.gams))
 ## Predictor Smoothing
 
 ```{r plot_gam_smooth}
+# Plot the smoothing parameters of the GAM model
 plot.gam(model.gams, se = TRUE, terms = c(sprintf("s(Age, spar = %.2f)",spar_gam_max_parameter), sprintf("s(RestBP, spar = %.2f)",spar_gam_max_parameter)))
 ```
 
@@ -123,33 +134,29 @@ There doesn't appear to be any benefit smoothing the splines due to the large st
 ### (i) GAM with only Intercept
 
 ```{r gam_with_intercept}
+# Fit the GAM model with only an intercept and compare to the original GAM model
 model.gami <- gam(HeartDisease ~ 1, family = binomial(link = "logit"), data = train_dataset1)
-anova(model.gams, model.gami, test = "Chi")
+print(anova(model.gams, model.gami, test = "Chi"))
 ```
 
 The gam model that includes all predictors with smoothing on the continuous ones performs better than the gam model with only the intercept at a significance level of 0.001.
 
 ### (ii) GAM with Categorical
 
-```{r gam_with_intercept}
+```{r gam_categorical_only}
+# Fit the GAM model with only categorical predictors and compare to the original GAM model
 model.gamcat <- gam(HeartDisease ~ Sex + ChestPain + ExAng + Thal, family = binomial(link = "logit"), data = train_dataset1)
-anova(model.gams, model.gamcat, test = "Chi")
+print(anova(model.gams, model.gamcat, test = "Chi"))
 ```
 
 The gam model that includes all predictors with smoothing on the continuous ones performs better than the gam model with only categorical predictors at a significance level of 0.05.
 
 ### (iii) GAM with Linear Predictors
 
-```{r gam_with_intercept}
+```{r gam_linear_predictors}
+# Fit the GAM model with all predictors entered linearly and compare to the original GAM model
 model.gamlin <- gam(HeartDisease ~ Age + Sex + ChestPain + RestBP + ExAng + Thal, family = binomial(link = "logit"), data = train_dataset1)
-anova(model.gams, model.gamlin, test = "Chi")
+print(anova(model.gams, model.gamlin, test = "Chi"))
 ```
 
 The gam model that includes all predictors with smoothing on the continuous ones performs better than the gam model with all predictors entered linearly, however the improvement is not statistically significant.
-
-# Problem 2: The Malaria Report
-
-```{r load_malaria_data}
-gdppercapita_dataset <- read.table("malaria_data/global-gdppercapita-byYear.csv",header = TRUE, sep = ",")
-
-```
