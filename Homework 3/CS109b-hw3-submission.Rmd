@@ -5,7 +5,7 @@ date: "February 18, 2017"
 output: pdf_document
 ---
 
-# Library
+# Libraries
 
 ```{r libraries}
 library(e1071)
@@ -35,4 +35,8 @@ accuracy.nb <- sum(diag(table.nb))/ sum(table.nb)
 print(sprintf("Naive Bayes Model Accuracy: %.2f", accuracy.nb))
 ```
 
-Naive Bayes assumes that one word 
+Naive Bayes assumes that the occurence of one word does not depend on the occurence of another word, however this is clearly not the case for written pieces. For example, the use of the word 'currency' in a piece increases the chance that 'deposit' will occur as well. Naive Bayes doesn't account for that which makes it a problem for this task.
+
+
+
+
