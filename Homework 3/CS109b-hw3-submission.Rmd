@@ -281,10 +281,48 @@ eval_mcmc <- function(alpha_parameter, author_A, author_B, author_til, author_id
 ```
 
 ```{r eval_mcmc}
-num_simulations <- c(1:500)
-mcmc_acc <- eval_mcmc(alpha_min_parameter, author_A, author_B, author_til, author_identity_test_amin, num_simulations)
-ggplot(data = data.frame(parameter = num_simulations, parameter_score = mcmc_acc), aes(x = parameter, y = parameter_score, group = 1)) + geom_line() + geom_point() + ggtitle(sprintf("MCMC Accuracy by Number of Simulations"))
+# Test MCMC model accuracy on differ numbers of simulations
+simulations <- c(1:100)
+mcmc_acc <- eval_mcmc(alpha_min_parameter, author_A, author_B, author_til, author_identity_test_amin, simulations)
+ggplot(data = data.frame(num_simulations = simulations, model_accuracy = mcmc_acc), aes(x = num_simulations, y = model_accuracy, group = 1)) + geom_line() + geom_point() + ggtitle(sprintf("MCMC Accuracy by Number of Simulations"))
 ```
 
-The number of simulations does not give more accuracy after 10 simulations, where the model accuracy then fluctuates between a band of .89 and .90. This matches the test accuracy in the DMM. After 10 simulations, increasing the number of simulations does not appear to have a significant effect on model accuracy, presumably because the MCMC model has found the appropriate posterior distribution to sample from, and so the remaining innaccurate predictoins are outliers.
+The number of simulations does not give more accuracy after 10 simulations, where the model accuracy then fluctuates between a band of .89 and .90. This matches the test accuracy in the DMM. After 10 simulations, increasing the number of simulations does not appear to have a significant effect on model accuracy, presumably because the MCMC model has found the appropriate posterior distribution to sample from, and so the remaining innaccurate predictions are outliers.
+
+##  Part 1d: Author vocabulary analysis
+
+```{r author_vocab_helper_function}
+# This function claculates an approximation to E[R_k|data] described above. 
+posterior_mean_R = function(alpha = 1, yA = NULL, yB = NULL, n.sim = NULL){
+	# number of features
+	K = length(yA)
+	alpha0 = rep(alpha, K)
+	# posterior parameter values	
+	post_thetaA = MCmultinomdirichlet(yA, alpha0, mc = n.sim)
+	post_thetaB = MCmultinomdirichlet(yB, alpha0, mc = n.sim)
+	# empirical values of R_k
+	R = post_thetaA/(post_thetaA + post_thetaB)
+	# calculate approximation to E[R_k|data]
+	ER = apply(R, 2, mean)
+	return(ER)
+}
+
+```
+
+```{r author_vocab_a}
+# create dataframe with words and variable importance
+simulations <- 10 # chosed based on problem 1c
+vocab_importance <- data.frame(words = words_preprocessed, importance = posterior_mean_R(alpha = alpha_min_parameter, yA = author_A, yB = author_B, n.sim = simulations))
+
+# Print important vocab for Aaron Pressman
+vocab_importance[with(vocab_importance, order(-importance)), ][1:25, ]
+
+```
+
+```{r author_vocab_b}
+# Print important vocab for Alan Crosby
+vocab_importance[with(vocab_importance, order(importance)), ][1:25, ]
+```
+
+We can interpret $E[R_k]$ as the relative importance of a word for Author A compared to Author B, i.e. a word that is widely used by Author A but not Author B. The higher the value, the more widely used the word is by Author A and unused by Author B and vice-versa. It looks like Aaron Pressman uses words associated with the business world significantly more, including "unions", "businesses", "software", and "corp". Alan Crosby on the other hand uses words more associated with politics, particularly in Eastern Europe, including "turnout", "seats", "constituencies", and "minister".
 
