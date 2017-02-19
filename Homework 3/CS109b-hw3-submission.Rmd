@@ -326,3 +326,85 @@ vocab_importance[with(vocab_importance, order(importance)), ][1:25, ]
 
 We can interpret $E[R_k]$ as the relative importance of a word for Author A compared to Author B, i.e. a word that is widely used by Author A but not Author B. The higher the value, the more widely used the word is by Author A and unused by Author B and vice-versa. It looks like Aaron Pressman uses words associated with the business world significantly more, including "unions", "businesses", "software", and "corp". Alan Crosby on the other hand uses words more associated with politics, particularly in Eastern Europe, including "turnout", "seats", "constituencies", and "minister".
 
+# Problem 2: Bayesian Logistic Regression
+
+```{r load_datasets_2, message=FALSE}
+# Load training and testing data, passing the preprocessed words as column names
+dataset2_train <- read.table("dataset_2_train.txt", header = TRUE, sep = ",")
+dataset2_train[, c(2,3,5)] <- sapply(dataset2_train[, c(2,3,5)], as.integer)
+dataset2_test <- read.table("dataset_2_test.txt",header = TRUE, sep = ",")
+dataset2_test[, c(2,3,5)] <- sapply(dataset2_test[, c(2,3,5)], as.integer)
+```
+
+```{r plot_urban}
+# Plot contraceptive use by region
+ggplot(dataset2_train, mapping = aes(x = urban, fill = contraceptive_use)) + geom_bar(position = "dodge") + ggtitle("Region and Contraceptive Use")
+
+# Plot contraceptive use by living children by district
+ggplot(dataset2_train, mapping = aes(x = urban, fill = contraceptive_use)) + geom_bar(position = "dodge") + facet_wrap(~district, ncol = 10) + ggtitle("Region and Contraceptive Use by District")
+```
+
+There does seem to be significant variation in regional contraceptive use depending on district, where some non-urban districts still show balanced if not majority contraceptive use (34, 36, and 54).
+
+```{r plot_children}
+# Plot contraceptive use by living children
+ggplot(dataset2_train, mapping = aes(x = living.children, fill = contraceptive_use)) + geom_bar(position = "dodge") + ggtitle("Living Children and Contraceptive Use")
+
+# Plot contraceptive use by living children by district
+ggplot(dataset2_train, mapping = aes(x = living.children, fill = contraceptive_use)) + geom_bar(position = "dodge") + facet_wrap(~district, ncol = 10) + ggtitle("Living Children and Contraceptive Use by District")
+```
+
+There does seem to be significant variation in contraceptive use by living children depending on district, where some districts shower higher uses of contraception among low-children women (51 and 61) while others show the opposite (28 and 30).
+
+```{r plot_age}
+# Plot contraceptive use by age
+ggplot(dataset2_train, mapping = aes(x = age_mean, fill = contraceptive_use)) + geom_histogram( alpha=.5, position="identity") + ggtitle("Age and Contraceptive Use")
+
+# Plot contraceptive use by living children by district
+ggplot(dataset2_train, mapping = aes(x = age_mean, fill = contraceptive_use)) + geom_histogram( alpha=.5, position="identity") + facet_wrap(~district, ncol = 10) + ggtitle("Age and Contraceptive Use by District")
+```
+
+There does seem to be significant variation in contraceptive use by average age depending on district, where some districts shower higher uses of contraception among younger women (51 and 61) while others show the opposite (6 and 22).
+
+```{r indidvidual_log_model, warning= FALSE}
+districts <- sort(unique(dataset2_train$district))
+individual_log_acc = rep(0., length(districts))
+for (i in 1:length(districts)) {
+  train_set <- dataset2_train[dataset2_train$district == districts[i], ]
+  test_set <- dataset2_test[dataset2_test$district == districts[i], ]
+  model.log <- glm(contraceptive_use ~ urban + living.children + age_mean, data = train_set, family = "binomial")
+  pred.log <- predict(model.log, newdata = test_set, type = "response")
+  table.log <- table((pred.log>.5), test_set$contraceptive_use)
+  individual_log_acc[i] <- sum(diag(table.log))/ sum(table.log)
+}
+```
+
+```{r general_log_model}
+# Fit and measure logistic regression on entire dataset
+model.general.log <- glm(contraceptive_use ~ urban + living.children + age_mean, data = dataset2_train, family = "binomial")
+pred.general.log <- predict(model.general.log, newdata = dataset2_test, type = "response")
+table.general.log <- table((pred.general.log>.5), dataset2_test$contraceptive_use)
+acc.general.log <- sum(diag(table.log))/ sum(table.log)
+acc.general.log <- rep(acc.general.log, length(districts))
+
+# Measure accuracy of general regression on each individual district
+general_log_acc = rep(0., length(districts))
+for (i in 1:length(districts)) {
+  test_set <- dataset2_test[dataset2_test$district == districts[i], ]
+  pred.log <- predict(model.general.log, newdata = test_set, type = "response")
+  table.log <- table((pred.log>.5), test_set$contraceptive_use)
+  general_log_acc[i] <- sum(diag(table.log))/ sum(table.log)
+}
+```
+
+```{r plot_log_models}
+# Plot the accuracy of the various models by district
+log_graph_data <- data.frame(district = districts, individual_model_acc = individual_log_acc, general_model_overall_acc = acc.general.log, general_model_individual_acc = general_log_acc)
+
+ggplot(log_graph_data, aes(x = district, y = accuracy)) + 
+  geom_line(aes(y = individual_model_acc, colour = "Individual Model Accuracy"), size = 1) + 
+  geom_line(aes(y = general_model_overall_acc, colour = "General Model Overall Accuracy"), size = 1) +
+  geom_line(aes(y = general_model_individual_acc, colour = "General Model Individual Accuracy"), size = 1) + ggtitle("Log Model Performance")
+```
+
+The individually fit models outperform the generally fit model for some districts, whereas for others the opposite is true. Therefore, if we could combine both models through a hierarchical model, we may acheive superior performance.
