@@ -7,13 +7,16 @@ output: pdf_document
 
 # Libraries
 
-```{r libraries}
+```{r libraries, message=FALSE}
 library(e1071)
+library(ggplot2)
+library(MCMCpack)
+library(MGLM)
 ```
 
 # Problem 1: Authorship Attribution
 
-```{r load_datasets_1}
+```{r load_datasets_1, message=FALSE}
 # Load preprocessed words to label columns
 words_preprocessed <- scan("words_preprocessed.txt", what = character(),sep = "")
 dataset1_column_names <- c("author", words_preprocessed)
@@ -30,6 +33,7 @@ dataset1_test <- read.table("dataset1_test_processed_subset.txt",header = FALSE,
 model.nb <- naiveBayes(author ~ ., data = dataset1_train)
 pred.nb <- predict(model.nb, dataset1_test, type = "class")
 
+# Get Naive Bayes Model Accuracy
 table.nb <- table(pred.nb, dataset1_test$author)
 accuracy.nb <- sum(diag(table.nb))/ sum(table.nb)
 print(sprintf("Naive Bayes Model Accuracy: %.2f", accuracy.nb))
@@ -37,6 +41,250 @@ print(sprintf("Naive Bayes Model Accuracy: %.2f", accuracy.nb))
 
 Naive Bayes assumes that the occurence of one word does not depend on the occurence of another word, however this is clearly not the case for written pieces. For example, the use of the word 'currency' in a piece increases the chance that 'deposit' will occur as well. Naive Bayes doesn't account for that which makes it a problem for this task.
 
+##  Part 1b: Dirichlet-Multinomial Model
 
+```{r posterior_helper_function}
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+# function: calculates the probability author is Aaron Pressman
+#	See lecture notes for formula
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
+posterior_pA = function(alpha, yA = NULL, yB = NULL, y_til = NULL){
+	# number of features
+	K = length(yA)
+	# total word counts
+	n = sum(y_til)
+	nA = sum(yA)
+	nB = sum(yB)
+	# posterior predictive distribution of being class A
+	A1 = lfactorial(n) + lfactorial(nA) - lfactorial(n + nA)
+	A2 = sum(lfactorial(y_til + yA)) - sum(lfactorial(y_til)) - sum(lfactorial(yA))
+	A3 = lfactorial(n + nA) + lgamma(K*alpha) - lgamma(n + nA + K*alpha)
+	A4 = sum(lgamma(y_til + yA + alpha) - lfactorial(y_til + yA) - lgamma(alpha))
+	A5 = lfactorial(nB) + lgamma(K*alpha) - lgamma(nB + K*alpha)
+	A6 = sum(lgamma(yB + alpha) - lfactorial(yB) - lgamma(alpha))
+	R_A = exp(A1 + A2 + A3 + A4 + A5 + A6)
+	# posterior predictive distribution of being class B
+	B1 = lfactorial(n) + lfactorial(nB) - lfactorial(n + nB)
+	B2 = sum(lfactorial(y_til + yB)) - sum(lfactorial(y_til)) - sum(lfactorial(yB))
+	B3 = lfactorial(n + nB) + lgamma(K*alpha) - lgamma(n + nB + K*alpha)
+	B4 = sum(lgamma(y_til + yB + alpha) - lfactorial(y_til + yB) - lgamma(alpha))
+	B5 = lfactorial(nA) + lgamma(K*alpha) - lgamma(nA + K*alpha)
+	B6 = sum(lgamma(yA + alpha) - lfactorial(yA) - lgamma(alpha))
+	R_B = exp(B1 + B2 + B3 + B4 + B5 + B6)
+	# probability of being class A
+	pA = R_A/(R_A + R_B)
+	return(pA)
+}
+```
+
+```{r log_loss_helper_function}
+# Function to log-loss of DMM
+log_loss <- function(author_identity, posterior_probability){
+  # Input: 
+  #   Vector of binomial values corresponding to author 'A': 'author_identity', 
+  #   Vector of posterior probabilities corresponding to author_identity: 'posterior_probability', 
+  # Output: 
+  #   Log-loss probability of the model
+  
+  n <- length(author_identity)
+  log_loss_probability <- 0
+  for (i in 1:n) { #loop through each author, adding the log of posterior probability or its inverse
+    if (author_identity[i] == 1) { # check if the author's identity corresponds to 'A'
+      log_loss_probability <- log_loss_probability + log(posterior_probability[i])
+    } else {
+      log_loss_probability <- log_loss_probability + log(1 - posterior_probability[i])
+    }
+  }
+  return(-1./n * log_loss_probability)
+}
+```
+
+```{r dmm_post_prob}
+# Function to get the posterior probability from a DMM
+dmm_model <- function(alpha, train_a, train_b, test_set) {
+  # Input: 
+  #   Float of the alpha parameter for a DMM: 'alpha', 
+  #   Vector with sum of key word frequencies for author 'A': 'train_a',
+  #   Vector with sum of key word frequencies for author 'B': 'train_b',
+  #   Data Frame of article key words for unknown author: 'test_set',
+  # Output: 
+  #   Posterior probability for the unknown author: 'posterior_prob'
+  
+  n <- nrow(test_set)
+  posterior_prob = rep(0., n)
+  for (i in 1:n) { # loop through each record in the test_set and predict posterior probaility
+    posterior_prob[i] <- posterior_pA(alpha, train_a, train_b, test_set[i, ])
+  }
+  return(posterior_prob)
+}
+```
+
+```{r cv_dmm}
+# Function to compute k-fold cross-validation accuracy for a given classification model
+crossval_dmm <- function(data, param_val, k) {
+  # Input: 
+  #   Training data frame: 'data', 
+  #   Vector of span parameter values: 'param_val', 
+  #   Number of CV folds: 'k'
+  # Output: 
+  #   Vector of Log-Loss values for the provided parameters: 'cv_log_loss'
+  
+  # Split dataset into author A and B
+  train_A <- data[data$author == "AaronPressman", ]
+  train_B <- data[data$author != "AaronPressman", ]
+  
+  num_param = length(param_val) # Number of parameters
+  set.seed(109) # Set seed for random number generator
+  
+  # Divide training set into k folds by sampling uniformly at random
+  # folds[s] has the fold index for train instance 's'
+  folds = sample(1:k, nrow(train_A), replace = TRUE) 
+
+  cv_log_loss = rep(0., num_param) # Store cross-validated log-loss for different parameter values
+  
+  # Iterate over parameter values
+  for(i in 1:num_param){
+    # Iterate over folds to compute log-loss for parameter
+    for(j in 1:k){
+      # Choose portions of author sets to train model on
+      train_A_total <- colSums(train_A[folds!=j, ][-1])
+      train_B_total <- colSums(train_B[folds!=j, ][-1])
+      
+      # Combine remaining portions into a test set
+      val_set <- rbind(train_A[folds == j, ], train_B[folds == j, ])
+      
+      # Calculate the posterior probability for the test set
+      posterior_prob <- dmm_model(param_val[i], train_A_total, train_B_total, val_set[-1])
+      val_identity <- as.numeric(val_set$author == "AaronPressman")
+      
+      
+      # Compute log-loss for predicted values
+      cv_log_loss[i] = cv_log_loss[i] + log_loss(val_identity, posterior_prob)
+    }
+    
+    # Average log-loss across k folds
+    cv_log_loss[i] = cv_log_loss[i] / k
+  }
+  
+  # Return cross-validated log-loss values
+  return(cv_log_loss)
+}
+```
+
+```{r format_posterior_data}
+# Format training and testing data for DMM
+author_A <- colSums(dataset1_train[dataset1_train$author == "AaronPressman", ][-1])
+author_B <- colSums(dataset1_train[dataset1_train$author != "AaronPressman", ][-1])
+author_til <- dataset1_test[-1]
+```
+
+```{r log_loss_alpha1}
+# Calculate posterior probability and log loss for DMM w/ alpha = 1
+posterior_prob_a1 <- dmm_model(1, author_A, author_B, author_til)
+author_identity_test_a1 <- as.numeric(dataset1_test$author == "AaronPressman")
+print(sprintf("Alpha = 1; Log-Loss Prediction Error: %.4f", log_loss(author_identity_test_a1, posterior_prob_a1)))
+```
+
+An Alpha of 1 assumes a uniform distribution across all the keywords, implying that the probability of finding a particular keyword in an article is equal to the probability of finding any other keyword.
+
+```{r tune_alpha_dmm}
+# Tune the alpha parameter through cross validation for the dmm
+alphas <- c(1.:15.)/10.
+dmm_cv_scores <- crossval_dmm(dataset1_train, alphas, 2)
+alpha_min_parameter <- alphas[which.min(dmm_cv_scores)]
+ggplot(data = data.frame(parameter = alphas, parameter_score = dmm_cv_scores), aes(x = parameter, y = parameter_score, group = 1)) + geom_line() + geom_point() + ggtitle(sprintf("Alpha Cross Validation | Min Parameter: %.2f", alpha_min_parameter))
+```
+
+```{r log_loss_amin}
+# Calculate and print the log loss of the optimal alpha
+print(sprintf("Optimal Value of Alpha: %.2f", alpha_min_parameter))
+posterior_prob_amin <- dmm_model(alpha_min_parameter, author_A, author_B, author_til)
+author_identity_test_amin <- as.numeric(dataset1_test$author == "AaronPressman")
+print(sprintf("Log-Loss Prediction Error: %.4f", log_loss(author_identity_test_amin, posterior_prob_amin)))
+```
+
+```{r tuned_dmm_accuracy}
+# Calculate accuracy of the tuned dmm
+pred.dmm <- (posterior_prob_amin>.5)
+table.dmm <- table(pred.dmm, author_identity_test_amin)
+accuracy.dmm <- sum(diag(table.dmm))/ sum(table.dmm)
+print(sprintf("Tuned DMM Accuracy: %.2f", accuracy.dmm))
+```
+
+The tuned DMM performs much better than the Naive Bayes model.
+
+##  Part 1c: Monte-Carlo Posterior Predictive Inference
+
+```{r mcppi_helper_function}
+# This function is an approximation of the above exact calculation of p(A|Data):
+#
+# 1. Make sure to install the MCMCpack and MGLM packages to use this funciton
+#
+# 2. It isn't written very efficiently, notice that a new simulation from posterior 
+#   is drawn each time. A more efficient implementation would be to instead 
+#   simulate the posteriors (post_thetaA, etc.) once and hand them to
+#   approx_posterior_pA to calculate the probability.
+
+approx_posterior_pA = function(post_thetaA = NULL, post_thetaB = NULL, y_til = NULL, n.sim = NULL){
+	# calculate the likelihood of the observation y_til under simulated posteriors
+	# note: ddirm calculates by-row likelihoods for (data, parameter) pairs
+	y_til_mat = matrix(rep(y_til, n.sim), nrow = n.sim, byrow = TRUE)
+	y_til_mat <- matrix(as.numeric(y_til_mat), n.sim, length(y_til))
+	likeA = exp(ddirm(y_til_mat, post_thetaA))
+	likeB = exp(ddirm(y_til_mat, post_thetaB))
+	# integrate over simulated parameters
+	marginal_pA = sum(likeA)
+	marginal_pB = sum(likeB)
+	# calculate probability of A
+	pA = marginal_pA/(marginal_pA + marginal_pB)
+
+	return(pA)
+}
+```
+
+```{r eval_mcmc_helper_function}
+# Function to evaluate the performance of an MCMC model based on the number of trials
+eval_mcmc <- function(alpha_parameter, author_A, author_B, author_til, author_identity, param_val) {
+  # Input: 
+  #   Value of alpha for Dirchilet model: 'alpha_parameter', 
+  #   Vector of keyword counts for author 'A': 'author_A', 
+  #   Vector of keyword counts for author 'B': 'author_B', 
+  #   Array of keyword counts of unknown authors: 'author_til', 
+  #   Vector of binomial values corresponding to author 'A': 'author_identity', 
+  #   List of number of simulations to run: 'param_val'
+  # Output: 
+  #   Array of number of simulations and corresponding accuracy values: 'acc'
+  
+  # number of features
+  K = length(author_A)
+	alpha0 = rep(alpha_parameter, K)
+  
+  n_params <- length(param_val)
+  n_records <- nrow(author_til)
+  acc = rep(0., n_params)
+  for (i in 1:n_params) { # loop through each parameter value and calculate posterior probability of each
+    posterior_prob = rep(0., n_records)
+    
+    # simulate parameters from the posterior of the Dirichlet-Multinomial model
+	  post_thetaA = MCmultinomdirichlet(author_A, alpha0, mc = param_val[i])
+	  post_thetaB = MCmultinomdirichlet(author_B, alpha0, mc = param_val[i])
+    
+    for (j in 1:n_records) { # loop through each record in the unknown author set
+      posterior_prob[j] <- approx_posterior_pA(post_thetaA = post_thetaA, post_thetaB = post_thetaB, y_til = author_til[j, ], n.sim = param_val[i]) 
+    }
+    table.mcmc <- table((posterior_prob > .5), author_identity)
+    acc[i] <- sum(diag(table.mcmc)) / sum(table.mcmc)
+  }
+  return(acc)
+}
+```
+
+```{r eval_mcmc}
+num_simulations <- c(1:500)
+mcmc_acc <- eval_mcmc(alpha_min_parameter, author_A, author_B, author_til, author_identity_test_amin, num_simulations)
+ggplot(data = data.frame(parameter = num_simulations, parameter_score = mcmc_acc), aes(x = parameter, y = parameter_score, group = 1)) + geom_line() + geom_point() + ggtitle(sprintf("MCMC Accuracy by Number of Simulations"))
+```
+
+The number of simulations does not give more accuracy after 10 simulations, where the model accuracy then fluctuates between a band of .89 and .90. This matches the test accuracy in the DMM. After 10 simulations, increasing the number of simulations does not appear to have a significant effect on model accuracy, presumably because the MCMC model has found the appropriate posterior distribution to sample from, and so the remaining innaccurate predictoins are outliers.
 
