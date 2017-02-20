@@ -12,6 +12,7 @@ library(e1071)
 library(ggplot2)
 library(MCMCpack)
 library(MGLM)
+library(plyr)
 ```
 
 # Problem 1: Authorship Attribution
@@ -377,6 +378,12 @@ for (i in 1:length(districts)) {
   table.log <- table((pred.log>.5), test_set$contraceptive_use)
   individual_log_acc[i] <- sum(diag(table.log))/ sum(table.log)
 }
+
+# Take weighted average to get total accuracy for individual regression models
+log_graph_data <- as.data.frame(table(dataset2_test$district))
+log_graph_data <- rename(log_graph_data, c("Var1" = "district", "Freq" = "count"))
+log_graph_data$individual_model_acc <- individual_log_acc
+acc.individual.log <- sum(log_graph_data$count * log_graph_data$individual_model_acc)/ sum(log_graph_data$count)
 ```
 
 ```{r general_log_model}
@@ -385,26 +392,52 @@ model.general.log <- glm(contraceptive_use ~ urban + living.children + age_mean,
 pred.general.log <- predict(model.general.log, newdata = dataset2_test, type = "response")
 table.general.log <- table((pred.general.log>.5), dataset2_test$contraceptive_use)
 acc.general.log <- sum(diag(table.log))/ sum(table.log)
-acc.general.log <- rep(acc.general.log, length(districts))
-
-# Measure accuracy of general regression on each individual district
-general_log_acc = rep(0., length(districts))
-for (i in 1:length(districts)) {
-  test_set <- dataset2_test[dataset2_test$district == districts[i], ]
-  pred.log <- predict(model.general.log, newdata = test_set, type = "response")
-  table.log <- table((pred.log>.5), test_set$contraceptive_use)
-  general_log_acc[i] <- sum(diag(table.log))/ sum(table.log)
-}
 ```
 
 ```{r plot_log_models}
-# Plot the accuracy of the various models by district
-log_graph_data <- data.frame(district = districts, individual_model_acc = individual_log_acc, general_model_overall_acc = acc.general.log, general_model_individual_acc = general_log_acc)
+print(sprintf("Individual District Model Accuracy: %.2f", acc.individual.log))
+print(sprintf("Overall Model Accuracy: %.2f", acc.general.log))
 
-ggplot(log_graph_data, aes(x = district, y = accuracy)) + 
-  geom_line(aes(y = individual_model_acc, colour = "Individual Model Accuracy"), size = 1) + 
-  geom_line(aes(y = general_model_overall_acc, colour = "General Model Overall Accuracy"), size = 1) +
-  geom_line(aes(y = general_model_individual_acc, colour = "General Model Individual Accuracy"), size = 1) + ggtitle("Log Model Performance")
 ```
 
-The individually fit models outperform the generally fit model for some districts, whereas for others the opposite is true. Therefore, if we could combine both models through a hierarchical model, we may acheive superior performance.
+The overall model performs better than the individual models when looking across the entire dataset, however there is room from improvement in the overall model, so if we could incorporate some of the components of the local models into the overall model that may be beneficial.
+
+```{r mcmc_hierarchical_model}
+model.hierarchical <- MCMChlogit(fixed = contraceptive_use ~ urban + living.children + age_mean, random = ~ urban + living.children + age_mean, group = "district", data = dataset2_train, r = 4, R = diag(c(1, 0.5, 0.5, 0.5)))
+
+get_columns <- function(mcmc) {
+  columns <- colnames(mcmc)
+  for (i in 1:length(columns)) {
+    columns[i] <- substr(columns[i], nchar(columns[i])-2+1, nchar(columns[i]))
+    columns[i] <- gsub("[.]", "", columns[i])
+  }
+  return(columns)
+}
+
+predict_mcmc_logit <- function(columns, model, newdata) {
+  predictions <- rep(0, dim(newdata)[1])
+  for (i in 1:dim(newdata)[1]) {
+    district <- newdata[i, 1]
+    test_set <- newdata[i, -1]
+    individual_model <- model[columns == toString(district)]
+    predictions[i] <- 1 / (1 + exp(-individual_model %*% do.call(rbind, c(1,test_set))))
+  }
+  return(predictions)
+}
+
+columns <- get_columns(model.hierarchical$mcmc)
+pred.mcmc <- predict_mcmc_logit(columns, summary(model.hierarchical$mcmc)$statistics[, 1], dataset2_test[c(-5)])
+
+mcmc_individual_acc = rep(0., length(districts))
+for (i in 1:length(districts)) {
+  test_set <- dataset2_test[dataset2_test$district == districts[i], ]
+  pred_set <- pred.mcmc[dataset2_test$district == districts[i]]
+  table.mcmc <- table(pred_set, test_set$contraceptive_use)
+  mcmc_individual_acc[i] <- sum(diag(table.mcmc))/ sum(table.mcmc)
+}
+
+log_graph_data$mcmc_individual_acc <- mcmc_individual_acc
+acc.individual.mcmc <- sum(log_graph_data$count * log_graph_data$mcmc_individual_acc)/ sum(log_graph_data$count)
+
+print(sprintf("MCMC Model Accuracy: %.2f", acc.individual.mcmc))
+```
