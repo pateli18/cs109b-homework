@@ -40,7 +40,7 @@ accuracy.nb <- sum(diag(table.nb))/ sum(table.nb)
 print(sprintf("Naive Bayes Model Accuracy: %.2f", accuracy.nb))
 ```
 
-Naive Bayes assumes that the occurence of one word does not depend on the occurence of another word, however this is clearly not the case for written pieces. For example, the use of the word 'currency' in a piece increases the chance that 'deposit' will occur as well. Naive Bayes doesn't account for that which makes it a problem for this task.
+Naive Bayes assumes that the occurrence of one word does not depend on the occurrence of another word, however this is clearly not the case for written pieces. For example, the use of the word 'currency' in a piece increases the chance that 'deposit' will occur as well. Naive Bayes doesn't account for that which makes it a problem for this task.
 
 ##  Part 1b: Dirichlet-Multinomial Model
 
@@ -192,7 +192,7 @@ An Alpha of 1 assumes a uniform distribution across all the keywords, implying t
 ```{r tune_alpha_dmm}
 # Tune the alpha parameter through cross validation for the dmm
 alphas <- c(1.:15.)/10.
-dmm_cv_scores <- crossval_dmm(dataset1_train, alphas, 2)
+dmm_cv_scores <- crossval_dmm(dataset1_train, alphas, 5)
 alpha_min_parameter <- alphas[which.min(dmm_cv_scores)]
 ggplot(data = data.frame(parameter = alphas, parameter_score = dmm_cv_scores), aes(x = parameter, y = parameter_score, group = 1)) + geom_line() + geom_point() + ggtitle(sprintf("Alpha Cross Validation | Min Parameter: %.2f", alpha_min_parameter))
 ```
@@ -283,12 +283,12 @@ eval_mcmc <- function(alpha_parameter, author_A, author_B, author_til, author_id
 
 ```{r eval_mcmc}
 # Test MCMC model accuracy on differ numbers of simulations
-simulations <- c(1:100)
+simulations <- c(1:500)
 mcmc_acc <- eval_mcmc(alpha_min_parameter, author_A, author_B, author_til, author_identity_test_amin, simulations)
 ggplot(data = data.frame(num_simulations = simulations, model_accuracy = mcmc_acc), aes(x = num_simulations, y = model_accuracy, group = 1)) + geom_line() + geom_point() + ggtitle(sprintf("MCMC Accuracy by Number of Simulations"))
 ```
 
-The number of simulations does not give more accuracy after 10 simulations, where the model accuracy then fluctuates between a band of .89 and .90. This matches the test accuracy in the DMM. After 10 simulations, increasing the number of simulations does not appear to have a significant effect on model accuracy, presumably because the MCMC model has found the appropriate posterior distribution to sample from, and so the remaining innaccurate predictions are outliers.
+The number of simulations does not give more accuracy after 10 simulations, where the model accuracy then fluctuates between a band of .89 and .90. This matches the test accuracy in the DMM. After 10 simulations, increasing the number of simulations does not appear to have a significant effect on model accuracy, presumably because the MCMC model has found the appropriate posterior distribution to sample from, and so the remaining inaccurate predictions are outliers.
 
 ##  Part 1d: Author vocabulary analysis
 
@@ -332,10 +332,14 @@ We can interpret $E[R_k]$ as the relative importance of a word for Author A comp
 ```{r load_datasets_2, message=FALSE}
 # Load training and testing data, passing the preprocessed words as column names
 dataset2_train <- read.table("dataset_2_train.txt", header = TRUE, sep = ",")
-dataset2_train[, c(2,3,5)] <- sapply(dataset2_train[, c(2,3,5)], as.integer)
+dataset2_train[, c(2,3,5)] <- sapply(dataset2_train[, c(2,3,5)], as.factor)
 dataset2_test <- read.table("dataset_2_test.txt",header = TRUE, sep = ",")
-dataset2_test[, c(2,3,5)] <- sapply(dataset2_test[, c(2,3,5)], as.integer)
+dataset2_test[, c(2,3,5)] <- sapply(dataset2_test[, c(2,3,5)], as.factor)
 ```
+
+## Visualize Data
+
+### Region
 
 ```{r plot_urban}
 # Plot contraceptive use by region
@@ -347,6 +351,8 @@ ggplot(dataset2_train, mapping = aes(x = urban, fill = contraceptive_use)) + geo
 
 There does seem to be significant variation in regional contraceptive use depending on district, where some non-urban districts still show balanced if not majority contraceptive use (34, 36, and 54).
 
+### Children
+
 ```{r plot_children}
 # Plot contraceptive use by living children
 ggplot(dataset2_train, mapping = aes(x = living.children, fill = contraceptive_use)) + geom_bar(position = "dodge") + ggtitle("Living Children and Contraceptive Use")
@@ -356,6 +362,8 @@ ggplot(dataset2_train, mapping = aes(x = living.children, fill = contraceptive_u
 ```
 
 There does seem to be significant variation in contraceptive use by living children depending on district, where some districts shower higher uses of contraception among low-children women (51 and 61) while others show the opposite (28 and 30).
+
+### Age
 
 ```{r plot_age}
 # Plot contraceptive use by age
@@ -367,7 +375,14 @@ ggplot(dataset2_train, mapping = aes(x = age_mean, fill = contraceptive_use)) + 
 
 There does seem to be significant variation in contraceptive use by average age depending on district, where some districts shower higher uses of contraception among younger women (51 and 61) while others show the opposite (6 and 22).
 
+## Logistic Regression Models
+
 ```{r indidvidual_log_model, warning= FALSE}
+# Load the individual datasets
+dataset2_train <- read.table("dataset_2_train.txt", header = TRUE, sep = ",")
+dataset2_test <- read.table("dataset_2_test.txt",header = TRUE, sep = ",")
+
+# Loop through each disrict and fit a logistic regression for each one
 districts <- sort(unique(dataset2_train$district))
 individual_log_acc = rep(0., length(districts))
 for (i in 1:length(districts)) {
@@ -380,10 +395,10 @@ for (i in 1:length(districts)) {
 }
 
 # Take weighted average to get total accuracy for individual regression models
-log_graph_data <- as.data.frame(table(dataset2_test$district))
-log_graph_data <- rename(log_graph_data, c("Var1" = "district", "Freq" = "count"))
-log_graph_data$individual_model_acc <- individual_log_acc
-acc.individual.log <- sum(log_graph_data$count * log_graph_data$individual_model_acc)/ sum(log_graph_data$count)
+model_output_data <- as.data.frame(table(dataset2_test$district))
+model_output_data <- rename(model_output_data, c("Var1" = "district", "Freq" = "count"))
+model_output_data$individual_model_acc <- individual_log_acc
+acc.individual.log <- sum(model_output_data$count * model_output_data$individual_model_acc)/ sum(model_output_data$count)
 ```
 
 ```{r general_log_model}
@@ -391,20 +406,24 @@ acc.individual.log <- sum(log_graph_data$count * log_graph_data$individual_model
 model.general.log <- glm(contraceptive_use ~ urban + living.children + age_mean, data = dataset2_train, family = "binomial")
 pred.general.log <- predict(model.general.log, newdata = dataset2_test, type = "response")
 table.general.log <- table((pred.general.log>.5), dataset2_test$contraceptive_use)
-acc.general.log <- sum(diag(table.log))/ sum(table.log)
+acc.general.log <- sum(diag(table.general.log))/ sum(table.general.log)
 ```
 
 ```{r plot_log_models}
+# Print accuracy of individual and entire dataset models
 print(sprintf("Individual District Model Accuracy: %.2f", acc.individual.log))
-print(sprintf("Overall Model Accuracy: %.2f", acc.general.log))
-
+print(sprintf("Entire Dataset Model Accuracy: %.2f", acc.general.log))
 ```
 
-The overall model performs better than the individual models when looking across the entire dataset, however there is room from improvement in the overall model, so if we could incorporate some of the components of the local models into the overall model that may be beneficial.
+The model fit on the entire dataset performs slightly better than the individual models (weighted average based on number of people on each district), however both show room for potential improvement. 
+
+## Bayesian Hierarchical Model
 
 ```{r mcmc_hierarchical_model}
-model.hierarchical <- MCMChlogit(fixed = contraceptive_use ~ urban + living.children + age_mean, random = ~ urban + living.children + age_mean, group = "district", data = dataset2_train, r = 4, R = diag(c(1, 0.5, 0.5, 0.5)))
+# Fit an mcmc bayes model
+model.hierarchical <- MCMChlogit(fixed = contraceptive_use ~ urban + living.children + age_mean, random = ~ urban + living.children + age_mean, group = "district", data = dataset2_train, r = 4, R = diag(c(1, 0.1, 0.1, 0.1)))
 
+# helper function to get column names for parsing mcmc coefficient outputs
 get_columns <- function(mcmc) {
   columns <- colnames(mcmc)
   for (i in 1:length(columns)) {
@@ -414,6 +433,7 @@ get_columns <- function(mcmc) {
   return(columns)
 }
 
+# helper function to predict test set classification from mcmc bayes model
 predict_mcmc_logit <- function(columns, model, newdata) {
   predictions <- rep(0, dim(newdata)[1])
   for (i in 1:dim(newdata)[1]) {
@@ -425,9 +445,11 @@ predict_mcmc_logit <- function(columns, model, newdata) {
   return(predictions)
 }
 
+# Predict test set classification
 columns <- get_columns(model.hierarchical$mcmc)
 pred.mcmc <- predict_mcmc_logit(columns, summary(model.hierarchical$mcmc)$statistics[, 1], dataset2_test[c(-5)])
 
+# Loop through each individual district and calculate prediction accuracy for mcmc model
 mcmc_individual_acc = rep(0., length(districts))
 for (i in 1:length(districts)) {
   test_set <- dataset2_test[dataset2_test$district == districts[i], ]
@@ -436,8 +458,11 @@ for (i in 1:length(districts)) {
   mcmc_individual_acc[i] <- sum(diag(table.mcmc))/ sum(table.mcmc)
 }
 
-log_graph_data$mcmc_individual_acc <- mcmc_individual_acc
-acc.individual.mcmc <- sum(log_graph_data$count * log_graph_data$mcmc_individual_acc)/ sum(log_graph_data$count)
+# Take weighted average to get total accuracy for mcmc bayes model
+model_output_data$mcmc_individual_acc <- mcmc_individual_acc
+acc.individual.mcmc <- sum(model_output_data$count * model_output_data$mcmc_individual_acc)/ sum(model_output_data$count)
 
 print(sprintf("MCMC Model Accuracy: %.2f", acc.individual.mcmc))
 ```
+
+The Bayesian hierarchical model performs almost identically to the locally fitted regression models on the test set. This makes sense given that the single logistic regression acts as a prior constraint on individually fitted models in the Bayesian hierarchical model. As such, the Bayesian hierarchical model should perform similarly to the individually fitted models with the differences caused by this prior constraint.
