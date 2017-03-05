@@ -33,7 +33,7 @@ dataset_1_test$Class <- as.factor(dataset_1_test$Class)
 model.svm_rbf_g1_c1 <- svm(Class ~ ., data = dataset_1_train, cost = 1, gamma = 1, kernel = "radial")
 
 # Predict Test Set and Calculate Accuracy
-pred.svm_rbf_g1_c1 <- predict(model.svm_rbf_g1_c1, dataset_1_test, type = "class")
+pred.svm_rbf_g1_c1 <- predict(model.svm_rbf_g1_c1, dataset_1_test)
 table.svm_rbf_g1_c1 <- table(pred.svm_rbf_g1_c1, dataset_1_test$Class)
 accuracy.svm_rbf_g1_c1 <- sum(diag(table.svm_rbf_g1_c1))/ sum(table.svm_rbf_g1_c1)
 print(sprintf("SVM Class = 1 Gamma = 1 Model Accuracy: %.4f", accuracy.svm_rbf_g1_c1))
@@ -41,7 +41,18 @@ print(sprintf("SVM Class = 1 Gamma = 1 Model Accuracy: %.4f", accuracy.svm_rbf_g
 
 ## 2. Confusion Matrix
 
-```{r confusion_matrix}
-
-
+### Train Confusion Matrix
+```{r train_confusion_matrix}
+# Print Train Confusion Matrix
+confusionMatrix(table(predict(model.svm_rbf_g1_c1, dataset_1_train), dataset_1_train$Class))
 ```
+
+### Test Confusion Matrix
+
+```{r test_confusion_matrix}
+# Print Test Confusion Matrix
+confusionMatrix(table(predict(model.svm_rbf_g1_c1, dataset_1_test), dataset_1_test$Class))
+```
+
+The model appears to overfit the training set by correctly predicting the class for every observation, while for the testing set the model just predicts class 3 for every observation.
+
