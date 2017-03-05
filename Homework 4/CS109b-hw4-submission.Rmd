@@ -156,3 +156,7 @@ ggplot(svm.rbf.tune$performances, mapping = aes(x = gamma, y = error)) + geom_li
 svm.rbf.tune_error_rate <- classError(predict(svm.rbf.tune$best.model, dataset_1_test), dataset_1_test$Class)$errorRate
 sprintf("SVM RBF Misclassification Rate: %.4f", svm.rbf.tune_error_rate)
 ```
+
+## 6. Best Model
+
+The linear is the best in terms of model accuracy as it has a lower misclassification rate on the test set when compared to the tuned polynomial and radial models. It also performs much better than a naive classifier that predicts the most common class on all points, which is what the original SVM RBF Model with cost = 1 and gamma = 1 also did.
