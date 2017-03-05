@@ -195,3 +195,31 @@ summary(model.hierarchical)
 ```
 
 The model returns distributions of intercepts and living children coefficients for each district as well as the estimated probability for each district model. The pooled and unpooled model do not these return probabilities.
+
+## 2(a) Plot living.children Coefficients
+
+```{r plot_living_children_coefficients}
+# Get list and number of districts
+districts <- unique(dataset_2$district)
+n_districts <- length(districts)
+
+# Get pooled coefficients
+pooled_coefficients <- rep(model.pooled$coefficients[2], n_districts)
+
+# Get unpooled coeffficents
+all_unpooled_coefficients <- model.unpooled$coefficient
+n_all_unpooled_coefficients <- length(all_unpooled_coefficients)
+unpooled_coefficients <- all_unpooled_coefficients[(n_all_unpooled_coefficients - n_districts + 2):n_all_unpooled_coefficients]
+unpooled_coefficients <- c(0, unpooled_coefficients) + all_unpooled_coefficients[1]
+
+# Get bayesian hierarchical model coefficients
+all_hierarchical_coefficients <- summary(model.hierarchical$mcmc)$statistics[, 1]
+n_all_hierarchical_coefficients <- length(all_hierarchical_coefficients)
+hierarchical_coefficients <- all_hierarchical_coefficients[(n_all_hierarchical_coefficients - 5 - n_districts):(n_all_hierarchical_coefficients - 6)]
+
+# Plot coefficients
+coefficient_graph_data <- data.frame(districts = districts, pooled = pooled_coefficients, unpooled = unpooled_coefficients, hierarchical = hierarchical_coefficients)
+ggplot(coefficient_graph_data, aes(districts)) + geom_point(aes(y = pooled, colour = "Pooled Coefficients")) + geom_point(aes(y = unpooled, colour = "Unpooled Coefficients")) + geom_point(aes(y = hierarchical, colour = "Bayesian Hierarchical Coefficients")) + ylab("Coefficient Value") + xlab("District") + ggtitle("Model Coefficient by District")
+```
+
+## 2(b) Plot Summary
