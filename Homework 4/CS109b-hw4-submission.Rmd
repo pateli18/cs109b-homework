@@ -10,6 +10,7 @@ output: pdf_document
 ```{r libraries, message=FALSE}
 library(e1071)
 library(caret)
+library(mclust)
 ```
 
 # Problem 1: Celestial Object Classification
@@ -36,7 +37,7 @@ model.svm_rbf_g1_c1 <- svm(Class ~ ., data = dataset_1_train, cost = 1, gamma = 
 pred.svm_rbf_g1_c1 <- predict(model.svm_rbf_g1_c1, dataset_1_test)
 table.svm_rbf_g1_c1 <- table(pred.svm_rbf_g1_c1, dataset_1_test$Class)
 accuracy.svm_rbf_g1_c1 <- sum(diag(table.svm_rbf_g1_c1))/ sum(table.svm_rbf_g1_c1)
-print(sprintf("SVM Class = 1 Gamma = 1 Model Accuracy: %.4f", accuracy.svm_rbf_g1_c1))
+print(sprintf("SVM Class = 1 Gamma = 1 Model Test Accuracy: %.4f", accuracy.svm_rbf_g1_c1))
 ```
 
 ## 2. Confusion Matrix
@@ -55,4 +56,27 @@ confusionMatrix(table(predict(model.svm_rbf_g1_c1, dataset_1_test), dataset_1_te
 ```
 
 The model appears to overfit the training set by correctly predicting the class for every observation, while for the testing set the model just predicts class 3 for every observation.
+
+## 3. Tuning Gamma
+
+```{r tune_gamma}
+# Initiate list with gammas and lists to store error rates
+gammas <- c(0.001, 0.005, 0.01, 0.05, 0.1, 0.2, 0.3)
+gamma_train_scores <- rep(0., length(gammas))
+gamma_test_scores <- rep(0., length(gammas))
+
+# Loop through each gamma value, fitting an svm and calculating training and test error artes
+for (gamma in 1:length(gammas)) {
+  model.svm_tune_gamma <- svm(Class ~ ., data = dataset_1_train, cost = 1, gamma = gammas[gamma], kernel = "radial")
+  gamma_train_scores[gamma] <- classError(predict(model.svm_tune_gamma, dataset_1_train), dataset_1_train$Class)$errorRate
+  gamma_test_scores[gamma] <- classError(predict(model.svm_tune_gamma, dataset_1_test), dataset_1_test$Class)$errorRate
+}
+
+# Plot training and test error rates
+gamma_scores <- data.frame(gammas = gammas, train_scores = gamma_train_scores, test_scores = gamma_test_scores)
+ggplot(gamma_scores, aes(gammas)) + geom_line(aes(y = train_scores, colour = "Train Error Rate")) + geom_line(aes(y = test_scores, colour = "Test Error Rate")) + ylab("Error Rate") + xlab("Gamma Value") + ggtitle("SVM Error Rate by Gamma Parameter")
+```
+
+It looks like model performance on the test set improves at very low levels as gamma increases (until gamma = 0.01) but then deteriorates rapidly as gamma continues to increase. The train error rate continues to improve as gamma increases, indicating clear overfiting post gamma = 0.01.
+
 
