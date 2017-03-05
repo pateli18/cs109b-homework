@@ -190,7 +190,7 @@ This model formula creates an interaction term between each district and living 
 ## 1(c) Bayesian Hierarchical Logistic Model
 
 ```{r bayesian_hiearchical_logistic_model}
-model.hierarchical <- MCMChlogit(fixed = contraceptive_use ~ living.children, random = ~ living.children, group = "district", data = dataset_2, r = 2, R = diag(c(1, 0.1)))
+model.hierarchical <- MCMChlogit(fixed = contraceptive_use ~ living.children, random = ~ living.children, group = "district", data = dataset_2, r = 2, R = diag(c(1, 0.1)), burnin = 5000, mcmc = 1000)
 summary(model.hierarchical)
 ```
 
@@ -219,7 +219,9 @@ hierarchical_coefficients <- all_hierarchical_coefficients[(n_all_hierarchical_c
 
 # Plot coefficients
 coefficient_graph_data <- data.frame(districts = districts, pooled = pooled_coefficients, unpooled = unpooled_coefficients, hierarchical = hierarchical_coefficients)
-ggplot(coefficient_graph_data, aes(districts)) + geom_point(aes(y = pooled, colour = "Pooled Coefficients")) + geom_point(aes(y = unpooled, colour = "Unpooled Coefficients")) + geom_point(aes(y = hierarchical, colour = "Bayesian Hierarchical Coefficients")) + ylab("Coefficient Value") + xlab("District") + ggtitle("Model Coefficient by District")
+ggplot(coefficient_graph_data, aes(districts)) + geom_point(aes(y = pooled, colour = "Pooled Coefficients")) + geom_point(aes(y = unpooled, colour = "Unpooled Coefficients")) + geom_point(aes(y = hierarchical, colour = "Bayesian Hierarchical Coefficients")) + ylab("Coefficient Value") + xlab("District") + ggtitle("Model Coefficient by District") + ylim(-2, 2)
 ```
+
+Vertical axis set between -2 and 2, since any coefficients larger than those that have little practical significance and eliminating them increases visibility into the variance in coefficients in the bayesian hierarchical model.
 
 ## 2(b) Plot Summary
