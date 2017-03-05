@@ -79,4 +79,25 @@ ggplot(gamma_scores, aes(gammas)) + geom_line(aes(y = train_scores, colour = "Tr
 
 It looks like model performance on the test set improves at very low levels as gamma increases (until gamma = 0.01) but then deteriorates rapidly as gamma continues to increase. The train error rate continues to improve as gamma increases, indicating clear overfiting post gamma = 0.01.
 
+## 4. Tuning Class
+
+```{r tune_class}
+# Initiate list with costs and lists to store error rates
+costs <- c(0.1, 0.25, 0.5, 0.75, 1., 2.5, 5., 7.5, 10., 12.5, 15., 17.5, 20.)
+cost_train_scores <- rep(0., length(costs))
+cost_test_scores <- rep(0., length(costs))
+
+# Loop through each cost value, fitting an svm and calculating training and test error artes
+for (cost in 1:length(costs)) {
+  model.svm_tune_cost <- svm(Class ~ ., data = dataset_1_train, cost = costs[cost], gamma = 0.01, kernel = "radial")
+  cost_train_scores[cost] <- classError(predict(model.svm_tune_cost, dataset_1_train), dataset_1_train$Class)$errorRate
+  cost_test_scores[cost] <- classError(predict(model.svm_tune_cost, dataset_1_test), dataset_1_test$Class)$errorRate
+}
+
+# Plot training and test error rates
+cost_scores <- data.frame(costs = costs, train_scores = cost_train_scores, test_scores = cost_test_scores)
+ggplot(cost_scores, aes(costs)) + geom_line(aes(y = train_scores, colour = "Train Error Rate")) + geom_line(aes(y = test_scores, colour = "Test Error Rate")) + ylab("Error Rate") + xlab("Cost Value") + ggtitle("SVM Error Rate by Cost Parameter")
+```
+
+It looks like model performance on the test set improves at low levels as cost increases (until cost = 2.5) but then deteriorates slowly as cost continues to increase. The train error rate continues to improve as cost increases, indicating clear overfiting post cost = 2.5.
 
