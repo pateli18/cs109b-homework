@@ -33,11 +33,9 @@ dataset_1_test$Class <- as.factor(dataset_1_test$Class)
 # Fit SVM
 model.svm_rbf_g1_c1 <- svm(Class ~ ., data = dataset_1_train, cost = 1, gamma = 1, kernel = "radial")
 
-# Predict Test Set and Calculate Accuracy
-pred.svm_rbf_g1_c1 <- predict(model.svm_rbf_g1_c1, dataset_1_test)
-table.svm_rbf_g1_c1 <- table(pred.svm_rbf_g1_c1, dataset_1_test$Class)
-accuracy.svm_rbf_g1_c1 <- sum(diag(table.svm_rbf_g1_c1))/ sum(table.svm_rbf_g1_c1)
-print(sprintf("SVM Class = 1 Gamma = 1 Model Test Accuracy: %.4f", accuracy.svm_rbf_g1_c1))
+# Predict Test Set and Calculate Misclassification Rate
+misclassification_rate.svm_rbf_g1_c1 <- classError(predict(model.svm_rbf_g1_c1, dataset_1_test), dataset_1_test$Class)$errorRate
+print(sprintf("SVM Class = 1 Gamma = 1 Misclassification Rate: %.4f", misclassification_rate.svm_rbf_g1_c1))
 ```
 
 ## 2. Confusion Matrix
@@ -101,3 +99,60 @@ ggplot(cost_scores, aes(costs)) + geom_line(aes(y = train_scores, colour = "Trai
 
 It looks like model performance on the test set improves at low levels as cost increases (until cost = 2.5) but then deteriorates slowly as cost continues to increase. The train error rate continues to improve as cost increases, indicating clear overfiting post cost = 2.5.
 
+## 5. Tune Various SVM Models
+
+```{r tuning_parameters}
+costs <- c(0.001, 0.01, 0.1, 1, 10, 20)
+gammas <- c(0.001, 0.01, 0.1, 1, 10, 20)
+```
+
+### Linear Model
+
+```{r tune_svm_linear_model}
+# Tune SVM Linear Model
+svm.linear.tune <- tune(svm, Class ~ ., data = dataset_1_train, ranges = list(cost = costs, kernel = 'linear'), tunecontrol = tune.control(cross = 5))
+
+# Print tune output
+svm.linear.tune
+
+# Plot error rate over tuning parameters
+ggplot(svm.linear.tune$performances, mapping = aes(x = cost, y = error)) + geom_line()
+svm.linear.tune_error_rate <- classError(predict(svm.linear.tune$best.model, dataset_1_test), dataset_1_test$Class)$errorRate
+
+# Print misclassification rate
+sprintf("SVM Linear Misclassification Rate: %.4f", svm.linear.tune_error_rate)
+```
+
+### Poly Model
+
+```{r tune_svm_poly_model}
+# Tune SVM Poly Model
+svm.poly.tune <- tune(svm, Class ~ ., data = dataset_1_train, ranges = list(gamma = gammas, cost = costs, kernel = 'polynomial', degree = 2), tunecontrol = tune.control(cross = 5))
+
+# Print tune output
+svm.poly.tune
+
+# Plot error rate over tuning parameters
+ggplot(svm.poly.tune$performances, mapping = aes(x = gamma, y = error)) + geom_line() + facet_wrap(~cost, labeller = label_both)
+
+# Print misclassification rate
+svm.poly.tune_error_rate <- classError(predict(svm.poly.tune$best.model, dataset_1_test), dataset_1_test$Class)$errorRate
+sprintf("SVM Poly Misclassification Rate: %.4f", svm.poly.tune_error_rate)
+```
+
+### RBF Model
+
+```{r tune_svm_rbf_model}
+# Tune SVM RBF Model
+svm.rbf.tune <- tune(svm, Class ~ ., data = dataset_1_train, ranges = list(gamma = gammas, cost = costs, kernel = 'radial'), tunecontrol = tune.control(cross = 5))
+
+# Print tune output
+svm.rbf.tune
+
+# Plot error rate over tuning parameters
+ggplot(svm.rbf.tune$performances, mapping = aes(x = gamma, y = error)) + geom_line() + facet_wrap(~cost, labeller = label_both)
+
+# Print misclassification rate
+svm.rbf.tune_error_rate <- classError(predict(svm.rbf.tune$best.model, dataset_1_test), dataset_1_test$Class)$errorRate
+sprintf("SVM RBF Misclassification Rate: %.4f", svm.rbf.tune_error_rate)
+```
