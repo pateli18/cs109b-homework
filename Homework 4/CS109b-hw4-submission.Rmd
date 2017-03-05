@@ -225,3 +225,44 @@ ggplot(coefficient_graph_data, aes(districts)) + geom_point(aes(y = pooled, colo
 Vertical axis set between -2 and 2, since any coefficients larger than those that have little practical significance and eliminating them increases visibility into the variance in coefficients in the bayesian hierarchical model.
 
 ## 2(b) Plot Summary
+
+## 3(a) Model Histograms
+
+### Pooled Model
+
+```{r plot_pooled_model}
+# Calculate and standardize pooled probabilties
+pred.pooled <- predict(model.pooled, dataset_2, type = "response")
+pred.pooled.standardized <- (pred.pooled - min(pred.pooled)) / (max(pred.pooled) - min(pred.pooled))
+dataset_2$pooled_prob <- pred.pooled.standardized
+
+# Plot probabilities
+binwidth <- .1
+ggplot() + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 1, ], aes(x = pooled_prob, fill = "1"), binwidth = binwidth) + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 0, ], aes(x = pooled_prob, y = -..count.., fill = "0"), binwidth = binwidth) + ylab("Frequency") + xlab("Pr(Contraceptive Use)") + ggtitle("Predicted Probabilities for Pooled Model") + scale_fill_manual(values=c("#619CFF", "#F8766D"), name="Contraceptive Use", breaks=c("good", "bad"), labels=c("1", "0"))
+```
+
+### Unpooled Model
+
+```{r plot_unpooled_model}
+# Calculate and standardize unpooled probabilties
+pred.unpooled <- predict(model.unpooled, dataset_2, type = "response")
+pred.unpooled.standardized <- (pred.unpooled - min(pred.unpooled)) / (max(pred.unpooled) - min(pred.unpooled))
+dataset_2$unpooled_prob <- pred.unpooled.standardized
+
+# Plot probabilities
+binwidth <- .1
+ggplot() + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 1, ], aes(x = unpooled_prob, fill = "1"), binwidth = binwidth) + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 0, ], aes(x = unpooled_prob, y = -..count.., fill = "0"), binwidth = binwidth) + ylab("Frequency") + xlab("Pr(Contraceptive Use)") + ggtitle("Predicted Probabilities for Unpooled Model") + scale_fill_manual(values=c("#619CFF", "#F8766D"), name="Contraceptive Use", breaks=c("good", "bad"), labels=c("1", "0"))
+```
+
+### Hierarchical Model
+
+```{r plot_hierarchical_model}
+# Calculate and standardize pooled probabilties
+pred.hierarchical <- model.hierarchical$theta.pred
+pred.hierarchical.standardized <- (pred.hierarchical - min(pred.hierarchical)) / (max(pred.hierarchical) - min(pred.hierarchical))
+dataset_2$hierarchical_prob <- pred.hierarchical.standardized
+
+# Plot probabilities
+binwidth <- .1
+ggplot() + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 1, ], aes(x = hierarchical_prob, fill = "1"), binwidth = binwidth) + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 0, ], aes(x = hierarchical_prob, y = -..count.., fill = "0"), binwidth = binwidth) + ylab("Frequency") + xlab("Pr(Contraceptive Use)") + ggtitle("Predicted Probabilities for Hierarchical Model") + scale_fill_manual(values=c("#619CFF", "#F8766D"), name="Contraceptive Use", breaks=c("good", "bad"), labels=c("1", "0"))
+```
