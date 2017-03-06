@@ -160,7 +160,7 @@ sprintf("SVM RBF Misclassification Rate: %.4f", svm.rbf.tune_error_rate)
 
 ## 6. Best Model
 
-The linear is the best in terms of model accuracy as it has a lower misclassification rate on the test set when compared to the tuned polynomial and radial models. It also performs much better than a naive classifier that predicts the most common class on all points, which is what the original SVM RBF Model with cost = 1 and gamma = 1 also did.
+The linear is the best in terms of model accuracy as it has a lower misclassification rate on the test set when compared to the tuned polynomial and radial-basis models. It also performs much better than a naive classifier that predicts the most common class on all points, which is what the original SVM RBF Model with cost = 1 and gamma = 1 also did.
 
 # Problem 2: Return of the Bayesian Hierarchical Modedl
 
@@ -176,7 +176,7 @@ model.pooled <- glm(contraceptive_use ~ living.children, data = dataset_2, famil
 summary(model.pooled)
 ```
 
-The number of living children increases the probability that a women uses contraception.
+The number of living children increases the probability that a women uses contraception and this association is statistically significant at the <.001 level.
 
 ## 1(b) Unpooled Model
 
@@ -185,7 +185,7 @@ model.unpooled <- glm(contraceptive_use ~ -1 + living.children*as.factor(distric
 summary(model.unpooled)
 ```
 
-This model formula creates an interaction term between each district and living children, and so each coefficient of the interaction terms represents an individual model for each district since the -1 ensures there is no intercept. It looks like the sign and magnitude of the coefficient for each district differs (though not all statistically significant), indicating that living children have different impacts on contraceptive use.
+This model formula creates an interaction term between each district and living children, and so each coefficient of the interaction terms represents an individual model for each district since the -1 ensures there is no intercept. It looks like the sign and magnitude of the coefficient for each district differs (though not all statistically significant), indicating that living children have different impacts on contraceptive use depending on the individual district.
 
 ## 1(c) Bayesian Hierarchical Logistic Model
 
@@ -277,3 +277,5 @@ The pooled model histogram exhibits probabilities for all 4 potential values of 
 ```{r unpooled_hierarchical_comparison}
 ggplot(data = dataset_2, aes(x = unpooled_prob)) + geom_point(aes(y = hierarchical_prob)) + geom_line(aes(y = unpooled_prob), colour = "red", size = 1) + ggtitle("Unpooled Model vs. Hierarchical Model")
 ```
+
+The probabilities of both models look to be positively correlated, however the hierarchical model probabilities appear to be less 'confident' (further away from 0 or 1, closer to .5 than the unpooled model probabilities). This makes sense as the hierarchical model is incorporating the 'prior' of the pooled model, which helps prevent it from overfitting to particular district's data. 
