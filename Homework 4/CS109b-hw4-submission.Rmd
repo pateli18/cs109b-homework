@@ -241,7 +241,7 @@ dataset_2$pooled_prob <- pred.pooled.standardized
 
 # Plot probabilities
 binwidth <- .05
-ggplot() + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 1, ], aes(x = pooled_prob, fill = "1"), binwidth = binwidth) + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 0, ], aes(x = pooled_prob, y = -..count.., fill = "0"), binwidth = binwidth) + ylab("Frequency") + xlab("Pr(Contraceptive Use)") + ggtitle("Predicted Probabilities for Pooled Model") + scale_fill_manual(values=c("#619CFF", "#F8766D"), name="Contraceptive Use", breaks=c("good", "bad"), labels=c("1", "0"))
+ggplot() + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 1, ], aes(x = pooled_prob, fill = "1"), binwidth = binwidth) + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 0, ], aes(x = pooled_prob, y = -..count.., fill = "0"), binwidth = binwidth) + ylab("Frequency") + xlab("Pr(Contraceptive Use)") + ggtitle("Predicted Probabilities for Pooled Model") + scale_fill_manual(values=c("#619CFF", "#F8766D"), name="Contraceptive Use", breaks=c("0", "1"), labels=c("0", "1")) + xlim(-.05, 1.05)
 ```
 
 ### Unpooled Model
@@ -253,7 +253,7 @@ dataset_2$unpooled_prob <- pred.unpooled
 
 # Plot probabilities
 binwidth <- .05
-ggplot() + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 1, ], aes(x = unpooled_prob, fill = "1"), binwidth = binwidth) + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 0, ], aes(x = unpooled_prob, y = -..count.., fill = "0"), binwidth = binwidth) + ylab("Frequency") + xlab("Pr(Contraceptive Use)") + ggtitle("Predicted Probabilities for Unpooled Model") + scale_fill_manual(values=c("#619CFF", "#F8766D"), name="Contraceptive Use", breaks=c("good", "bad"), labels=c("1", "0")) + xlim(0, 1)
+ggplot() + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 1, ], aes(x = unpooled_prob, fill = "1"), binwidth = binwidth) + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 0, ], aes(x = unpooled_prob, y = -..count.., fill = "0"), binwidth = binwidth) + ylab("Frequency") + xlab("Pr(Contraceptive Use)") + ggtitle("Predicted Probabilities for Unpooled Model") + scale_fill_manual(values=c("#619CFF", "#F8766D"), name="Contraceptive Use", breaks=c("0", "1"), labels=c("0", "1")) + xlim(-0.05, 1.05)
 ```
 
 ### Hierarchical Model
@@ -265,12 +265,12 @@ dataset_2$hierarchical_prob <- pred.hierarchical
 
 # Plot probabilities
 binwidth <- .05
-ggplot() + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 1, ], aes(x = hierarchical_prob, fill = "1"), binwidth = binwidth) + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 0, ], aes(x = hierarchical_prob, y = -..count.., fill = "0"), binwidth = binwidth) + ylab("Frequency") + xlab("Pr(Contraceptive Use)") + ggtitle("Predicted Probabilities for Hierarchical Model") + scale_fill_manual(values=c("#619CFF", "#F8766D"), name="Contraceptive Use", breaks=c("good", "bad"), labels=c("1", "0")) + xlim(0, 1)
+ggplot() + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 1, ], aes(x = hierarchical_prob, fill = "1"), binwidth = binwidth) + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 0, ], aes(x = hierarchical_prob, y = -..count.., fill = "0"), binwidth = binwidth) + ylab("Frequency") + xlab("Pr(Contraceptive Use)") + ggtitle("Predicted Probabilities for Hierarchical Model") + scale_fill_manual(values=c("#619CFF", "#F8766D"), name="Contraceptive Use", breaks=c("0", "1"), labels=c("0", "1")) + xlim(-0.05, 1.05)
 ```
 
 ### Model Comparison
 
-The pooled model histogram exhibits probabilities for all 4 potential values of living children (with probability increasing as number of children does). 
+The pooled model histogram exhibits probabilities for all 4 potential values of living children (with probability increasing as number of children does). It clearly does a poor job of distinguishing between classes as the no contraceptive use dominates regardless of probability. The unpooled model histogram probabilities are more spread out (though still clustered between .25 and .75) and it does a better job differentiating between the classes, particularly at probability values further away from .5. The hierarchical model histogram is more clustered than the unpooled model and appears to differentiate between the classes better around the .5 level than the unpooled model (though neither does particularly well).
 
 ## 3(b) Unpooled Hierarchical Comparison
 
