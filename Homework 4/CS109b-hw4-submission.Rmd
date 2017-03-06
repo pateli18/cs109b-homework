@@ -103,8 +103,8 @@ It looks like model performance on the test set improves at low levels as cost i
 ## 5. Tune Various SVM Models
 
 ```{r tuning_parameters}
-costs <- c(0.001, 0.01, 0.1, 1, 10, 20)
-gammas <- c(0.001, 0.01, 0.1, 1, 10, 20)
+costs <- 10^c(-10:10)
+gammas <- 10^c(-10:10)
 ```
 
 ### Linear Model
@@ -117,7 +117,7 @@ svm.linear.tune <- tune(svm, Class ~ ., data = dataset_1_train, ranges = list(co
 svm.linear.tune
 
 # Plot error rate over tuning parameters
-ggplot(svm.linear.tune$performances, mapping = aes(x = cost, y = error)) + geom_line()
+ggplot(svm.linear.tune$performances, mapping = aes(x = cost, y = error)) + geom_line() + scale_x_log10()
 svm.linear.tune_error_rate <- classError(predict(svm.linear.tune$best.model, dataset_1_test), dataset_1_test$Class)$errorRate
 
 # Print misclassification rate
@@ -134,7 +134,7 @@ svm.poly.tune <- tune(svm, Class ~ ., data = dataset_1_train, ranges = list(gamm
 svm.poly.tune
 
 # Plot error rate over tuning parameters
-ggplot(svm.poly.tune$performances, mapping = aes(x = gamma, y = error)) + geom_line() + facet_wrap(~cost, labeller = label_both)
+ggplot(svm.poly.tune$performances, mapping = aes(x = gamma, y = error)) + geom_line() + facet_wrap(~cost, labeller = label_both) + scale_x_log10()
 
 # Print misclassification rate
 svm.poly.tune_error_rate <- classError(predict(svm.poly.tune$best.model, dataset_1_test), dataset_1_test$Class)$errorRate
@@ -151,7 +151,7 @@ svm.rbf.tune <- tune(svm, Class ~ ., data = dataset_1_train, ranges = list(gamma
 svm.rbf.tune
 
 # Plot error rate over tuning parameters
-ggplot(svm.rbf.tune$performances, mapping = aes(x = gamma, y = error)) + geom_line() + facet_wrap(~cost, labeller = label_both)
+ggplot(svm.rbf.tune$performances, mapping = aes(x = gamma, y = error)) + geom_line() + facet_wrap(~cost, labeller = label_both) + scale_x_log10()
 
 # Print misclassification rate
 svm.rbf.tune_error_rate <- classError(predict(svm.rbf.tune$best.model, dataset_1_test), dataset_1_test$Class)$errorRate
@@ -218,13 +218,17 @@ n_all_hierarchical_coefficients <- length(all_hierarchical_coefficients)
 hierarchical_coefficients <- all_hierarchical_coefficients[(n_all_hierarchical_coefficients - 5 - n_districts):(n_all_hierarchical_coefficients - 6)]
 
 # Plot coefficients
-coefficient_graph_data <- data.frame(districts = districts, pooled = pooled_coefficients, unpooled = unpooled_coefficients, hierarchical = hierarchical_coefficients)
-ggplot(coefficient_graph_data, aes(districts)) + geom_point(aes(y = pooled, colour = "Pooled Coefficients")) + geom_point(aes(y = unpooled, colour = "Unpooled Coefficients")) + geom_point(aes(y = hierarchical, colour = "Bayesian Hierarchical Coefficients")) + ylab("Coefficient Value") + xlab("District") + ggtitle("Model Coefficient by District") + ylim(-2, 2)
+coefficient_graph_data <- data.frame(districts = districts, observations = as.numeric(table(dataset_2$district)), pooled = pooled_coefficients, unpooled = unpooled_coefficients, hierarchical = hierarchical_coefficients)
+ggplot(coefficient_graph_data, aes(districts)) + geom_point(aes(y = pooled, colour = "Pooled Coefficients")) + geom_point(aes(y = unpooled, colour = "Unpooled Coefficients", size = observations)) + geom_point(aes(y = hierarchical, colour = "Bayesian Hierarchical Coefficients", size = observations)) + ylab("Coefficient Value") + xlab("District") + ggtitle("Model Coefficient by District") + ylim(-2, 2)
 ```
 
 Vertical axis set between -2 and 2, since any coefficients larger than those that have little practical significance and eliminating them increases visibility into the variance in coefficients in the bayesian hierarchical model.
 
 ## 2(b) Plot Summary
+
+Both the bayesian hierarchical coefficients and the unpooled coefficients exhibit some variance depending on the district, however the unpooled coefficients appear to have a much higher variance in terms of coefficient value. The bayesian hierarchical coefficients appear to be much more tightly clustered around the pooled coefficient as compared to the unpooled coefficients. In addition, only 2 districts have bayesian hierarchical coefficients that are greater than the pooled coefficient, indicating it may act as a sort of upper-bound for most districts. The bayesian hierarchical coefficients therefore look to be a compromise between the unpooled and pooled coefficients, allowing for variability but still accounting for the overall trend in the dataset.
+
+The number of observations in a particular district appears to effect the variability of the unpooled and bayesian hierarchical coefficients, as those with a lower number of observations tend to have coefficient values further away from the pooled coefficient. This could indicate potential overfitting due to small sample size.
 
 ## 3(a) Model Histograms
 
@@ -263,6 +267,10 @@ dataset_2$hierarchical_prob <- pred.hierarchical
 binwidth <- .05
 ggplot() + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 1, ], aes(x = hierarchical_prob, fill = "1"), binwidth = binwidth) + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 0, ], aes(x = hierarchical_prob, y = -..count.., fill = "0"), binwidth = binwidth) + ylab("Frequency") + xlab("Pr(Contraceptive Use)") + ggtitle("Predicted Probabilities for Hierarchical Model") + scale_fill_manual(values=c("#619CFF", "#F8766D"), name="Contraceptive Use", breaks=c("good", "bad"), labels=c("1", "0")) + xlim(0, 1)
 ```
+
+### Model Comparison
+
+The pooled model histogram exhibits probabilities for all 4 potential values of living children (with probability increasing as number of children does). 
 
 ## 3(b) Unpooled Hierarchical Comparison
 
