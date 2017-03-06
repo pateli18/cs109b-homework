@@ -263,3 +263,9 @@ dataset_2$hierarchical_prob <- pred.hierarchical
 binwidth <- .05
 ggplot() + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 1, ], aes(x = hierarchical_prob, fill = "1"), binwidth = binwidth) + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 0, ], aes(x = hierarchical_prob, y = -..count.., fill = "0"), binwidth = binwidth) + ylab("Frequency") + xlab("Pr(Contraceptive Use)") + ggtitle("Predicted Probabilities for Hierarchical Model") + scale_fill_manual(values=c("#619CFF", "#F8766D"), name="Contraceptive Use", breaks=c("good", "bad"), labels=c("1", "0")) + xlim(0, 1)
 ```
+
+## 3(b) Unpooled Hierarchical Comparison
+
+```{r unpooled_hierarchical_comparison}
+ggplot(data = dataset_2, aes(x = unpooled_prob)) + geom_point(aes(y = hierarchical_prob)) + geom_line(aes(y = unpooled_prob), colour = "red", size = 1) + ggtitle("Unpooled Model vs. Hierarchical Model")
+```
