@@ -54,7 +54,7 @@ confusionMatrix(table(predict(model.svm_rbf_g1_c1, dataset_1_train), dataset_1_t
 confusionMatrix(table(predict(model.svm_rbf_g1_c1, dataset_1_test), dataset_1_test$Class))
 ```
 
-The model appears to overfit the training set by correctly predicting the class for every observation, while for the testing set the model just predicts class 3 for every observation.
+The model appears to over-fit the training set by correctly predicting the class for every observation, while for the testing set the model just predicts class 3 for every observation.
 
 ## 3. Tuning Gamma
 
@@ -76,7 +76,7 @@ gamma_scores <- data.frame(gammas = gammas, train_scores = gamma_train_scores, t
 ggplot(gamma_scores, aes(gammas)) + geom_line(aes(y = train_scores, colour = "Train Error Rate")) + geom_line(aes(y = test_scores, colour = "Test Error Rate")) + ylab("Error Rate") + xlab("Gamma Value") + ggtitle("SVM Error Rate by Gamma Parameter")
 ```
 
-It looks like model performance on the test set improves at very low levels as gamma increases (until gamma = 0.01) but then deteriorates rapidly as gamma continues to increase. The train error rate continues to improve as gamma increases, indicating clear overfiting post gamma = 0.01.
+It looks like model performance on the test set improves at very low levels as gamma increases (until gamma = 0.01) but then deteriorates rapidly as gamma continues to increase. The train error rate continues to improve as gamma increases, indicating clear over-fitting post gamma = 0.01.
 
 ## 4. Tuning Class
 
@@ -98,7 +98,7 @@ cost_scores <- data.frame(costs = costs, train_scores = cost_train_scores, test_
 ggplot(cost_scores, aes(costs)) + geom_line(aes(y = train_scores, colour = "Train Error Rate")) + geom_line(aes(y = test_scores, colour = "Test Error Rate")) + ylab("Error Rate") + xlab("Cost Value") + ggtitle("SVM Error Rate by Cost Parameter")
 ```
 
-It looks like model performance on the test set improves at low levels as cost increases (until cost = 2.5) but then deteriorates slowly as cost continues to increase. The train error rate continues to improve as cost increases, indicating clear overfiting post cost = 2.5.
+It looks like model performance on the test set improves at low levels as cost increases (until cost = 2.5) but then deteriorates slowly as cost continues to increase. The train error rate continues to improve as cost increases, indicating clear over-fitting post cost = 2.5.
 
 ## 5. Tune Various SVM Models
 
@@ -222,22 +222,22 @@ coefficient_graph_data <- data.frame(districts = districts, observations = as.nu
 ggplot(coefficient_graph_data, aes(districts)) + geom_point(aes(y = pooled, colour = "Pooled Coefficients")) + geom_point(aes(y = unpooled, colour = "Unpooled Coefficients", size = observations)) + geom_point(aes(y = hierarchical, colour = "Bayesian Hierarchical Coefficients", size = observations)) + ylab("Coefficient Value") + xlab("District") + ggtitle("Model Coefficient by District") + ylim(-2, 2)
 ```
 
-Vertical axis set between -2 and 2, since any coefficients larger than those that have little practical significance and eliminating them increases visibility into the variance in coefficients in the bayesian hierarchical model.
+Vertical axis set between -2 and 2, since any coefficients larger than those that have little practical significance and eliminating them increases visibility into the variance in coefficients in the Bayesian hierarchical model.
 
 ## 2(b) Plot Summary
 
-Both the bayesian hierarchical coefficients and the unpooled coefficients exhibit some variance depending on the district, however the unpooled coefficients appear to have a much higher variance in terms of coefficient value. The bayesian hierarchical coefficients appear to be much more tightly clustered around the pooled coefficient as compared to the unpooled coefficients. In addition, only 2 districts have bayesian hierarchical coefficients that are greater than the pooled coefficient, indicating it may act as a sort of upper-bound for most districts. The bayesian hierarchical coefficients therefore look to be a compromise between the unpooled and pooled coefficients, allowing for variability but still accounting for the overall trend in the dataset.
+Both the Bayesian hierarchical coefficients and the unpooled coefficients exhibit some variance depending on the district, however the unpooled coefficients appear to have a much higher variance in terms of coefficient value. The Bayesian hierarchical coefficients appear to be much more tightly clustered around the pooled coefficient as compared to the unpooled coefficients. In addition, only 2 districts have Bayesian hierarchical coefficients that are greater than the pooled coefficient, indicating it may act as a sort of upper-bound for most districts. The Bayesian hierarchical coefficients therefore look to be a compromise between the unpooled and pooled coefficients, allowing for variability but still accounting for the overall trend in the dataset.
 
-The number of observations in a particular district appears to effect the variability of the unpooled and bayesian hierarchical coefficients, as those with a lower number of observations tend to have coefficient values further away from the pooled coefficient. This could indicate potential overfitting due to small sample size.
+The number of observations in a particular district appears to effect the variability of the unpooled and Bayesian hierarchical coefficients, as those with a lower number of observations tend to have coefficient values further away from the pooled coefficient. This could indicate potential over-fitting due to small sample size.
 
 ## 3(a) Model Histograms
 
 ### Pooled Model
 
-```{r plot_pooled_model}
+```{r plot_pooled_model, warning=FALSE}
 # Calculate and standardize pooled probabilties
 pred.pooled <- predict(model.pooled, dataset_2, type = "response")
-dataset_2$pooled_prob <- pred.pooled.standardized
+dataset_2$pooled_prob <- pred.pooled
 
 # Plot probabilities
 binwidth <- .05
@@ -246,7 +246,7 @@ ggplot() + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 1, ], 
 
 ### Unpooled Model
 
-```{r plot_unpooled_model}
+```{r plot_unpooled_model, warning=FALSE}
 # Calculate and standardize unpooled probabilties
 pred.unpooled <- predict(model.unpooled, dataset_2, type = "response")
 dataset_2$unpooled_prob <- pred.unpooled
@@ -258,7 +258,7 @@ ggplot() + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 1, ], 
 
 ### Hierarchical Model
 
-```{r plot_hierarchical_model}
+```{r plot_hierarchical_model, warning=FALSE}
 # Calculate and standardize pooled probabilties
 pred.hierarchical <- model.hierarchical$theta.pred
 dataset_2$hierarchical_prob <- pred.hierarchical
@@ -270,7 +270,7 @@ ggplot() + geom_histogram(data = dataset_2[dataset_2$contraceptive_use == 1, ], 
 
 ### Model Comparison
 
-The pooled model histogram exhibits probabilities for all 4 potential values of living children (with probability increasing as number of children does). It clearly does a poor job of distinguishing between classes as the no contraceptive use dominates regardless of probability. The unpooled model histogram probabilities are more spread out (though still clustered between .25 and .75) and it does a better job differentiating between the classes, particularly at probability values further away from .5. The hierarchical model histogram is more clustered than the unpooled model and appears to differentiate between the classes better around the .5 level than the unpooled model (though neither does particularly well).
+The pooled model histogram exhibits probabilities for all 4 potential values of living children (with probability increasing as number of children does). It clearly does a poor job of distinguishing between classes as the no contraceptive use dominates regardless of the probability threshold chosen. The unpooled model histogram probabilities are more spread out (though still clustered between .25 and .75) and it does a better job differentiating between the classes, particularly at probability values further away from .5. The hierarchical model histogram is more clustered than the unpooled model and appears to differentiate between the classes better around the .5 level than the unpooled model (though neither does particularly well).
 
 ## 3(b) Unpooled Hierarchical Comparison
 
@@ -278,4 +278,10 @@ The pooled model histogram exhibits probabilities for all 4 potential values of 
 ggplot(data = dataset_2, aes(x = unpooled_prob)) + geom_point(aes(y = hierarchical_prob)) + geom_line(aes(y = unpooled_prob), colour = "red", size = 1) + ggtitle("Unpooled Model vs. Hierarchical Model")
 ```
 
-The probabilities of both models look to be positively correlated, however the hierarchical model probabilities appear to be less 'confident' (further away from 0 or 1, closer to .5 than the unpooled model probabilities). This makes sense as the hierarchical model is incorporating the 'prior' of the pooled model, which helps prevent it from overfitting to particular district's data. 
+The probabilities of both models look to be positively correlated, however the hierarchical model probabilities appear to be less 'confident' (further away from 0 or 1, closer to .5 than the unpooled model probabilities). This makes sense as the hierarchical model is incorporating the 'prior' of the pooled model, which helps prevent it from over-fitting to particular district's data.
+
+# Problem 3
+
+* **Email Address**: ihsaan.patel@gmail.com
+* **Harvard Email**: ihsaan_patel@hks18.harvard.edu
+* **AWS ID**: 157598045262
