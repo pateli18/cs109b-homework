@@ -140,3 +140,81 @@ ggplot(pca_states_data, aes(x=PC1, y=PC2)) + geom_point() + geom_density2d() + g
 
 The visualizations show clustering around the middle of the data as well as the edges, which makes sense given the two party system anad the tendency for some states to consistently vote Democratic, others to consistently vote Republican, and other swing states that flip between Democratic and Republican depending on the election year. Interstingly the PCA plot appears to be a mirror image of the multi-dimensional scaling plot. There are no clear clusters and the density overlay only shows one center, but there looks to be around 4 to 5 based on visual inspection.
 
+## Problem 2b: Partitioning Clustering
+
+### KMeans
+
+```{r k_means_gap}
+kmeans_gapstat <- clusGap(scale(dataset_2),FUN=kmeans, K.max=10)
+print(kmeans_gapstat, method = "Tibs2001SEmax")
+```
+
+Optimal number of methods is **1** as this satisfies the Tibsherani criteria
+
+```{r k_means_elbow}
+fviz_nbclust(scale(dataset_2), kmeans, method="gap_stat", k.max = 10) + ggtitle("K-means clustering for US Voting Patterns - optimal number of clusters")
+```
+
+Optimal number of methods is **1** as displayed in the chart
+
+```{r k_means_silouhette}
+fviz_nbclust(scale(dataset_2), kmeans, method="silhouette", k.max = 10) + ggtitle("K-means clustering for US Voting Patterns - optimal number of clusters")
+```
+
+Optimal number of clusters is **7** as displayed in the chart
+
+**Summary**: The methods do not agree on the optimal number of clusters because the computation for each is different and the lack of clear clusters in the data visualizations means that these different computation methods can lead to different answers.
+
+### PAM
+
+```{r pam_gap}
+pam_gapstat <- clusGap(scale(dataset_2),FUN=pam, K.max=10)
+print(pam_gapstat, method = "Tibs2001SEmax")
+```
+
+Optimal number of methods is **1** as this satisfies the Tibsherani criteria
+
+```{r pam_elbow}
+fviz_nbclust(scale(dataset_2), pam, method="gap_stat", k.max = 10) + ggtitle("PAM clustering for US Voting Patterns - optimal number of clusters")
+```
+
+Optimal number of methods is **1** as displayed in the chart
+
+```{r k_means_silouhette}
+fviz_nbclust(scale(dataset_2), pam, method="silhouette", k.max = 10) + ggtitle("PAM clustering for US Voting Patterns - optimal number of clusters")
+```
+
+Optimal number of clusters is **3** as displayed in the chart
+
+**Summary**: The methods do not agree on the optimal number of clusters because the computation for each is different and the lack of clear clusters in the data visualizations means that these different computation methods can lead to different answers.
+
+### Principal Components Plot
+
+```{r principal_components_plot}
+optimal_clusters = 3
+chosen_kmeans = kmeans(scale(dataset_2), optimal_clusters)
+chosen_pam = pam(scale(dataset_2), optimal_clusters)
+fviz_cluster(chosen_kmeans, data = scale(dataset_2), main = "KMeans Clustering of US Voting Data")
+fviz_cluster(chosen_pam, main = "PAM Clustering of US Voting Data")
+```
+
+The clusterings are similar but not exactly the same, with the difference being in those datapoints towards the centers of both clusters. What's interesting is that the top and right clusters for both are clearly Republican (with the exception of Virginia in recent elections), whereas the left cluster includes Democratic states along with more conservative ones like Texas (with the more conservative ones very close to the other clusters).
+
+### Silhouette Plots
+
+```{r silhouette_plots}
+# kmeans silhouette
+fviz_silhouette(silhouette(chosen_kmeans$cluster, dist(scale(dataset_2))), main="Silhouette plot for KMeans clustering")
+kmeans_sil = silhouette(chosen_kmeans$cluster, dist(scale(dataset_2)))[, 3]
+kmeans_neg_sil_index = which(kmeans_sil < 0)
+print("KMeans Misclassified States:")
+print(row.names(dataset_2)[kmeans_neg_sil_index])
+
+# PAM silhouette
+fviz_silhouette(silhouette(chosen_pam), main="Silhouette plot for PAM clustering")
+pam_sil = silhouette(chosen_pam)[, 3]
+pam_neg_sil_index = which(pam_sil < 0)
+print("PAM Misclassified States:")
+print(row.names(dataset_2)[pam_neg_sil_index])
+```
+
