@@ -10,6 +10,15 @@ output: pdf_document
 ```{r helper_functions}
 library(e1071)
 library(caret)
+library(cluster)
+library(mclust)
+library(corrplot)
+library(dbscan)
+library(MASS)
+library(ggplot2)
+library(ggfortify)
+library(NbClust)
+library(factoextra)
 
 rot90 <- function(x, n = 1){
   #Rotates 90 degrees (counterclockwise)
@@ -104,4 +113,30 @@ print(sprintf("Naive Classifier: %.4f", cm_naive$overall[[1]]))
 
 The SVM performs significantly better than a naiive classifier that just uses the dominant class, indicating that the PCA was still able to preserve the important predictive features while reducing dimensionality
 
-# Problem 2:
+# Problem 2: Analyzing Voting Patterns of US States
+
+```{r load_dataset_2}
+dataset_2 <- read.table("CS109b-hw5-dataset_2.txt", header = TRUE)
+```
+
+## Problem 2a: Visualize the data
+
+```{r euclidea_distance}
+euclidean_distance <- daisy(dataset_2, metric = "euclidean", stand = TRUE)
+fviz_dist(euclidean_distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+
+```{r multi_dimensional_scaling}
+multi_dimension_scaling <- cmdscale(euclidean_distance)
+colnames(multi_dimension_scaling) <- c("var1", "var2")
+ggplot(multi_dimension_scaling, aes(x=var1, y=var2)) + geom_point() +  ggtitle("Multi-Dimensional Scaling")
+```
+
+```{r pca_data}
+pca_states <- prcomp(dataset_2, scale = TRUE, center = TRUE)
+pca_states_data <- predict(pca_states, dataset_2)[, 1:2]
+ggplot(pca_states_data, aes(x=PC1, y=PC2)) + geom_point() + geom_density2d() + ggtitle("PCA")
+```
+
+The visualizations show clustering around the middle of the data as well as the edges, which makes sense given the two party system anad the tendency for some states to consistently vote Democratic, others to consistently vote Republican, and other swing states that flip between Democratic and Republican depending on the election year. Interstingly the PCA plot appears to be a mirror image of the multi-dimensional scaling plot. There are no clear clusters and the density overlay only shows one center, but there looks to be around 4 to 5 based on visual inspection.
+
