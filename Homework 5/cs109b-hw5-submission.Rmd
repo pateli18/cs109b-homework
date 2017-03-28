@@ -38,6 +38,20 @@ plot.face = function(x,zlim=c(-1,1)) {
   image(rot90(matrix(x,nrow=250)[,250:1],3),col=cols,
         zlim=zlim,axes=FALSE)  
 }
+
+agnes.reformat<-function(x, k){
+# x: Data matrix or frame, k: Number of clusters
+  x.agnes = agnes(x,method="ward",stand=T)
+  x.cluster = list(cluster=cutree(x.agnes,k=k))
+  return(x.cluster)
+}
+
+diana.reformat<-function(x, k){
+# x: Data matrix or frame, k: Number of clusters
+  x.diana = diana(x,stand=T)
+  x.cluster = list(cluster=cutree(x.diana,k=k))
+  return(x.cluster)
+}
 ```
 
 # Problem 1: Face recognition
@@ -217,4 +231,86 @@ pam_neg_sil_index = which(pam_sil < 0)
 print("PAM Misclassified States:")
 print(row.names(dataset_2)[pam_neg_sil_index])
 ```
+
+## Problem 2c: Hierarchical Clustering
+
+### Agglomerative clustering
+
+```{r agnes_dendogram}
+pltree(agnes(dataset_2))
+```
+
+
+```{r agnes}
+agnes_gapstat <- clusGap(scale(dataset_2),FUN=agnes.reformat, K.max=10)
+print(agnes_gapstat, method = "Tibs2001SEmax")
+```
+
+While the optimal number of clusters is **1** using the Tibshirani metric, I'll instead use 2 (which is the next number to satisfy the metric) to visualize on the dendogram.
+
+```{r dendogram_rectangle}
+agnes_chosen = agnes(scale(dataset_2),method="ward",stand=T)
+pltree(agnes(dataset_2))
+rect.hclust(agnes_chosen, k = 2)
+```
+
+While the optimal cluster as chosen based on the gap statistic does not necessarily clearly delineate between traditionally Democratic and Republican voting states, the right box does lean heavily Democratic with Texas and Missippi the notable exceptions. The left box has mostly Republican voting states with some Democratic stalwarts like California.
+
+```{r agnes_silhouette}
+agnes_output <- as.integer((agnes.reformat(scale(dataset_2), 2))[[1]])
+fviz_silhouette(silhouette(agnes_output, dist(scale(dataset_2))), main="Silhouette plot for AGNES clustering")
+agnes_sil <- silhouette(agnes_output, dist(scale(dataset_2)))[, 3]
+agnes_neg_sil_index <- which(agnes_sil < 0)
+print("Agnes Misclassified States:")
+print(row.names(dataset_2)[agnes_neg_sil_index])
+```
+
+The silhouette plot shows that 4 states look liklely to be misclassified.
+
+### Divisive Clustering
+
+```{r diana_dendogram}
+pltree(diana(dataset_2))
+```
+
+
+```{r diana_gapstat}
+diana_gapstat <- clusGap(scale(dataset_2),FUN=diana.reformat, K.max=10)
+print(diana_gapstat, method = "Tibs2001SEmax")
+```
+
+While the optimal number of clusters is **1** using the Tibshirani metric, I'll instead use 3 (which is the next number to satisfy the metric) to visualize on the dendogram.
+
+```{r diana_dendogram_rectangle}
+diana_chosen = diana(scale(dataset_2),stand=T)
+pltree(diana(dataset_2))
+rect.hclust(diana_chosen, k = 3)
+```
+
+While the optimal cluster as chosen based on the gap statistic does not necessarily clearly delineate between traditionally Democratic and Republican voting states, the right box does lean heavily Democratic with Texas, Kentucky, Georgia and Louisiana the notable exceptions. The middle and left boxes have essentially all Republican leaning states
+
+```{r diana_silhouette}
+diana_output <- as.integer((diana.reformat(scale(dataset_2), 2))[[1]])
+fviz_silhouette(silhouette(diana_output, dist(scale(dataset_2))), main="Silhouette plot for AGNES clustering")
+diana_sil <- silhouette(diana_output, dist(scale(dataset_2)))[, 3]
+diana_neg_sil_index <- which(diana_sil < 0)
+print("Agnes Misclassified States:")
+print(row.names(dataset_2)[diana_neg_sil_index])
+```
+
+The silhouette plot shows that all of the states look to be well classified with no negative silhouettes.
+
+### Principal Components Plots
+
+```{r agnes_pc_plot}
+grp.agnes = cutree(agnes_chosen, k=2)
+fviz_cluster(list(data = scale(dataset_2), cluster = grp.agnes), main="AGNES fit - 2 clusters")
+```
+
+```{r diana_pc_plot}
+grp.diana = cutree(diana_chosen, k=3)
+fviz_cluster(list(data = scale(dataset_2), cluster = grp.diana), main="DIANA fit - 2 clusters")
+```
+
+While the AGNES plot looks markedly different as it is only 2 clusters, it's left cluster is similar to the left and middle clusters in problem 2b. The right cluster is also similar though smaller as it does not include Virgina for example. The DIANA plot is very similar to the plots in problem 2b though the middle cluster is much smaller and only includes 4 states.
 
