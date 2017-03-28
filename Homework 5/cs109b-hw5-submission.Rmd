@@ -314,3 +314,47 @@ fviz_cluster(list(data = scale(dataset_2), cluster = grp.diana), main="DIANA fit
 
 While the AGNES plot looks markedly different as it is only 2 clusters, it's left cluster is similar to the left and middle clusters in problem 2b. The right cluster is also similar though smaller as it does not include Virgina for example. The DIANA plot is very similar to the plots in problem 2b though the middle cluster is much smaller and only includes 4 states.
 
+## Part 2d: Soft Clustering
+
+### Fuzzy Clustering
+
+```{r fanny_gap_statistic, warning=FALSE}
+fanny_gapstat <- clusGap(scale(dataset_2),FUN=fanny, K.max=10)
+print(fanny_gapstat, method = "Tibs2001SEmax")
+```
+
+While the optimal number of clusters is **1** using the Tibshirani metric, I'll instead use **2** (which is the next number to satisfy the metric) instead.
+
+```{r fanny_pc_plot}
+chosen_fanny = fanny(dataset_2, 2)
+fviz_cluster(chosen_fanny, data = scale(dataset_2), main = "Fuzzy Clustering of US Voting Data")
+```
+
+```{r fanny_corrplot}
+corrplot(chosen_fanny$membership)
+```
+
+```{r fanny_silhouette}
+fviz_silhouette(silhouette(chosen_fanny), main="Silhouette plot for Fuzzy clustering")
+fanny_sil = silhouette(chosen_fanny)[, 3]
+fanny_neg_sil_index = which(fanny_sil < 0)
+print("Fuzze Misclassified States:")
+print(row.names(dataset_2)[fanny_neg_sil_index])
+```
+
+### Gaussian Mixture Model
+
+```{r gmm_tune}
+gmm <- Mclust(dataset_2)
+```
+
+```{r gmm_pc_plot}
+fviz_cluster(gmm, data = scale(dataset_2), main = "Gaussian Mixture Model of US Voting Data")
+```
+
+```{r gmm_corrplot}
+corrplot(gmm$z)
+```
+
+## Problem 2e: Density-based clustering
+
