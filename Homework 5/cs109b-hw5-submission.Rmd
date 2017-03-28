@@ -358,3 +358,13 @@ corrplot(gmm$z)
 
 ## Problem 2e: Density-based clustering
 
+```{r dbscan_knn_plot}
+kNNdistplot(dataset_2)
+chosen_eps <- .75
+abline(chosen_eps,0,lty=2,lwd=2,col="red") # added after seeing kNN plot
+```
+
+```{r dbscan_pc_plot}
+chosen_dbscan <- dbscan(dataset_2, chosen_eps, minPts = 5)
+fviz_cluster(chosen_dbscan, data = scale(dataset_2), main = "DBScan Clustering of US Voting Data")
+```
