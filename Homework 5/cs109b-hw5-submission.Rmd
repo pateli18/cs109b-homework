@@ -7,7 +7,7 @@ output: pdf_document
 
 # Libraries & Helper Functions
 
-```{r helper_functions}
+```{r helper_functions, warning=FALSE}
 library(e1071)
 library(caret)
 library(cluster)
@@ -57,28 +57,44 @@ diana.reformat<-function(x, k){
 # Problem 1: Face recognition
 
 ```{r load_data}
+# load data
 load("CS109b-hw5-dataset_1.Rdata")
 ```
+
+## Each Pixel As Predictor
+
+The problem with using each pixel as a predictor is hyper-dimensionality, which will lead the classifier to overfit the training data and have poor predictive accuracy on non-training sets.
+
+##  Using PCs Instead
+
+Fitting a classifcation model to lower dimensional representations of the images could be more beneficial because it avoids the problem of hyperdimensionality and overfitting while still keeping enough of the variance to build an accurate predictive model.
 
 ## Top 5 Principal Components
 
 ```{r pca_transform}
+# pca transform data
 pca_object = prcomp(imgs_train, scale = TRUE, center = TRUE)
+
+# calculate proportion of variance explained by each pc
 pca_prop_of_variance <- pca_object$sdev^2/sum(pca_object$sdev^2)
 print(sprintf("Variance explained by Top 5 Components: %.2f",sum(pca_prop_of_variance[1:5])))
 ```
 
 ```{r visualize_eigenfaces}
+# get top 5 pc transformed matrix for training images
 eigenfaces_5pc = pca_object$x[, 1:5] %*% t(pca_object$rotation[, 1:5])
+
+# visualize actual and pca transformed first image
 print("Original Image 1")
 plot.face(imgs_train[1, ])
 print("Eigenface Image 1")
 plot.face(eigenfaces_5pc[1, ])
+
+# visualize actual and pca transformed second image
 print("Original Image 2")
 plot.face(imgs_train[2, ])
 print("Eigenface Image 2")
 plot.face(eigenfaces_5pc[2, ])
-
 ```
 
 The eigenfaces show how much of the facial image information is captured by the top 5 principal components, which appears to be substantial as it's possible to see the outlines of the head, eyes, nose, mouth as well as other facial features.
@@ -86,7 +102,10 @@ The eigenfaces show how much of the facial image information is captured by the 
 ## Principal Components - 90% of Variation
 
 ```{r 90%_variation}
+# calculate cumulative proportion of variance
 cumulative_pca_prop_of_variance <- cumsum(pca_prop_of_variance)
+
+# loop through each pc until cumulative proportion of variance explained is >= 90%
 for (i in 1:length(cumulative_pca_prop_of_variance)) {
   if (cumulative_pca_prop_of_variance[i] >= .90) {
     pca_90_index = i
@@ -99,6 +118,7 @@ print(sprintf("Top PCs that contribute 90 percent of the data: %i", pca_90_index
 The number of identified PCs is substantially less than the total number of pixels in the images (109 vs. 62,500) which helps reduce the problem of hyperdimensionality in the dataset.
 
 ```{r compute_pc_scores}
+# transform training and test data with pcas that explain 90% of variance
 train_pca_data = data.frame(labels_train, predict(pca_object, imgs_train)[, 1:pca_90_index])
 test_pca_data = data.frame(labels_test, predict(pca_object, imgs_test)[, 1:pca_90_index])
 ```
@@ -106,6 +126,7 @@ test_pca_data = data.frame(labels_test, predict(pca_object, imgs_test)[, 1:pca_9
 ## PCA SVM Model
 
 ```{r svm_train}
+# tune and train svm through 5 k-fold cross-validation
 costs <- 10^c(-10:10)
 gammas <- 10^c(-10:10)
 
@@ -125,7 +146,7 @@ cm_naive <- confusionMatrix(table(factor(naive_predictions, u), factor(labels_te
 print(sprintf("Naive Classifier: %.4f", cm_naive$overall[[1]]))
 ```
 
-The SVM performs significantly better than a naiive classifier that just uses the dominant class, indicating that the PCA was still able to preserve the important predictive features while reducing dimensionality
+The SVM performs significantly better than a naiive classifier that just uses the dominant class, indicating that the PCA was still able to preserve the important predictive features while reducing dimensionality.
 
 # Problem 2: Analyzing Voting Patterns of US States
 
