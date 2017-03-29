@@ -151,23 +151,27 @@ The SVM performs significantly better than a naiive classifier that just uses th
 # Problem 2: Analyzing Voting Patterns of US States
 
 ```{r load_dataset_2}
+# load data
 dataset_2 <- read.table("CS109b-hw5-dataset_2.txt", header = TRUE)
 ```
 
 ## Problem 2a: Visualize the data
 
 ```{r euclidea_distance}
+# calculate and visualize euclidean distance
 euclidean_distance <- daisy(dataset_2, metric = "euclidean", stand = TRUE)
 fviz_dist(euclidean_distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
 ```
 
 ```{r multi_dimensional_scaling}
+# calculate multi-dimensional scaling
 multi_dimension_scaling <- cmdscale(euclidean_distance)
 colnames(multi_dimension_scaling) <- c("var1", "var2")
 ggplot(multi_dimension_scaling, aes(x=var1, y=var2)) + geom_point() +  ggtitle("Multi-Dimensional Scaling")
 ```
 
 ```{r pca_data}
+# PCA transformation of data using top 2 PCs
 pca_states <- prcomp(dataset_2, scale = TRUE, center = TRUE)
 pca_states_data <- predict(pca_states, dataset_2)[, 1:2]
 ggplot(pca_states_data, aes(x=PC1, y=PC2)) + geom_point() + geom_density2d() + ggtitle("PCA")
@@ -180,17 +184,18 @@ The visualizations show clustering around the middle of the data as well as the 
 ### KMeans
 
 ```{r k_means_gap}
-kmeans_gapstat <- clusGap(scale(dataset_2),FUN=kmeans, K.max=10)
+# view kmeans gapstat
+kmeans_gapstat <- clusGap(scale(dataset_2),FUN=kmeans, K.max=10, nstart=25, B=500)
 print(kmeans_gapstat, method = "Tibs2001SEmax")
 ```
 
-Optimal number of methods is **1** as this satisfies the Tibsherani criteria
+Optimal number of clusters is **1** as this satisfies the Tibshirani criteria, but I'll use **2** because this is the cluster that satisfies the Tibshirani criteria between 2 and 10.
 
 ```{r k_means_elbow}
 fviz_nbclust(scale(dataset_2), kmeans, method="gap_stat", k.max = 10) + ggtitle("K-means clustering for US Voting Patterns - optimal number of clusters")
 ```
 
-Optimal number of methods is **1** as displayed in the chart
+Optimal number of methods is **1** as displayed in the chart, but I'll use **2** given the constraints mentioned in the previous section.
 
 ```{r k_means_silouhette}
 fviz_nbclust(scale(dataset_2), kmeans, method="silhouette", k.max = 10) + ggtitle("K-means clustering for US Voting Patterns - optimal number of clusters")
@@ -203,17 +208,17 @@ Optimal number of clusters is **7** as displayed in the chart
 ### PAM
 
 ```{r pam_gap}
-pam_gapstat <- clusGap(scale(dataset_2),FUN=pam, K.max=10)
+pam_gapstat <- clusGap(scale(dataset_2),FUN=pam, K.max=10, B=500)
 print(pam_gapstat, method = "Tibs2001SEmax")
 ```
 
-Optimal number of methods is **1** as this satisfies the Tibsherani criteria
+Optimal number of methods is **1** as this satisfies the Tibsherani criteria, but I'll use **2** because this is the cluster that satisfies the Tibshirani criteria between 2 and 10.
 
 ```{r pam_elbow}
 fviz_nbclust(scale(dataset_2), pam, method="gap_stat", k.max = 10) + ggtitle("PAM clustering for US Voting Patterns - optimal number of clusters")
 ```
 
-Optimal number of methods is **1** as displayed in the chart
+Optimal number of methods is **1** as displayed in the chart, but I'll use **2** given the constraints mentioned in the previous section.
 
 ```{r k_means_silouhette}
 fviz_nbclust(scale(dataset_2), pam, method="silhouette", k.max = 10) + ggtitle("PAM clustering for US Voting Patterns - optimal number of clusters")
@@ -233,7 +238,7 @@ fviz_cluster(chosen_kmeans, data = scale(dataset_2), main = "KMeans Clustering o
 fviz_cluster(chosen_pam, main = "PAM Clustering of US Voting Data")
 ```
 
-The clusterings are similar but not exactly the same, with the difference being in those datapoints towards the centers of both clusters. What's interesting is that the top and right clusters for both are clearly Republican (with the exception of Virginia in recent elections), whereas the left cluster includes Democratic states along with more conservative ones like Texas (with the more conservative ones very close to the other clusters).
+The clusterings are similar but not exactly the same, with the difference being in those datapoints towards the centers of both clusters (the right cluster for both is the same). What's interesting for the PAM clustering is that the top and right clusters are clearly Republican (with the exception of Virginia in recent elections), whereas the left cluster includes Democratic states along with more conservative ones like Texas (with the more conservative ones very close to the other clusters). The KMeans clustering appears to cluster the most Democratic states into their own cluster (the one on the left), while grouping Democratic states together with some of the most Republican states like Mississippi, Georgia, and Alabama.
 
 ### Silhouette Plots
 
@@ -263,11 +268,11 @@ pltree(agnes(dataset_2))
 
 
 ```{r agnes}
-agnes_gapstat <- clusGap(scale(dataset_2),FUN=agnes.reformat, K.max=10)
+agnes_gapstat <- clusGap(scale(dataset_2),FUN=agnes.reformat, K.max=10, B=500)
 print(agnes_gapstat, method = "Tibs2001SEmax")
 ```
 
-While the optimal number of clusters is **1** using the Tibshirani metric, I'll instead use 2 (which is the next number to satisfy the metric) to visualize on the dendogram.
+While the optimal number of clusters is **1** using the Tibshirani metric, I'll instead use **2** (which is the next number to satisfy the metric) to visualize on the dendogram.
 
 ```{r dendogram_rectangle}
 agnes_chosen = agnes(scale(dataset_2),method="ward",stand=T)
@@ -286,7 +291,7 @@ print("Agnes Misclassified States:")
 print(row.names(dataset_2)[agnes_neg_sil_index])
 ```
 
-The silhouette plot shows that 4 states look liklely to be misclassified.
+The silhouette plot shows that 4 states look liklely to be misclassified, so the clustering could be improved.
 
 ### Divisive Clustering
 
@@ -296,11 +301,11 @@ pltree(diana(dataset_2))
 
 
 ```{r diana_gapstat}
-diana_gapstat <- clusGap(scale(dataset_2),FUN=diana.reformat, K.max=10)
+diana_gapstat <- clusGap(scale(dataset_2),FUN=diana.reformat, K.max=10, B=500)
 print(diana_gapstat, method = "Tibs2001SEmax")
 ```
 
-While the optimal number of clusters is **1** using the Tibshirani metric, I'll instead use 3 (which is the next number to satisfy the metric) to visualize on the dendogram.
+While the optimal number of clusters is **1** using the Tibshirani metric, I'll instead use **3** (which is the next number to satisfy the metric) to visualize on the dendogram.
 
 ```{r diana_dendogram_rectangle}
 diana_chosen = diana(scale(dataset_2),stand=T)
@@ -330,17 +335,17 @@ fviz_cluster(list(data = scale(dataset_2), cluster = grp.agnes), main="AGNES fit
 
 ```{r diana_pc_plot}
 grp.diana = cutree(diana_chosen, k=3)
-fviz_cluster(list(data = scale(dataset_2), cluster = grp.diana), main="DIANA fit - 2 clusters")
+fviz_cluster(list(data = scale(dataset_2), cluster = grp.diana), main="DIANA fit - 3 clusters")
 ```
 
-While the AGNES plot looks markedly different as it is only 2 clusters, it's left cluster is similar to the left and middle clusters in problem 2b. The right cluster is also similar though smaller as it does not include Virgina for example. The DIANA plot is very similar to the plots in problem 2b though the middle cluster is much smaller and only includes 4 states.
+While the AGNES plot looks markedly different as it is only 2 clusters, it's left cluster is similar to the left and middle clusters in problem 2b. The right cluster is also similar though smaller as it does not include Virgina for example. The DIANA plot is more similar to the plots in problem 2b though the middle cluster is much smaller and only includes 4 states.
 
 ## Part 2d: Soft Clustering
 
 ### Fuzzy Clustering
 
 ```{r fanny_gap_statistic, warning=FALSE}
-fanny_gapstat <- clusGap(scale(dataset_2),FUN=fanny, K.max=10)
+fanny_gapstat <- clusGap(scale(dataset_2),FUN=fanny, K.max=10, B=500)
 print(fanny_gapstat, method = "Tibs2001SEmax")
 ```
 
@@ -351,17 +356,23 @@ chosen_fanny = fanny(dataset_2, 2)
 fviz_cluster(chosen_fanny, data = scale(dataset_2), main = "Fuzzy Clustering of US Voting Data")
 ```
 
+The right cluster appears to include Republican states whereas the left cluster includes both Democratic and Republican states.
+
 ```{r fanny_corrplot}
-corrplot(chosen_fanny$membership)
+corrplot(chosen_fanny$membership, is.corr = F)
 ```
+
+Most of the states have high probabilities of appearing in one of the groups, though states like North Carolina, and Tennessee, and South Dakota appear to have more split probabilities, which makes sense as they are close to the border between both clusters.
 
 ```{r fanny_silhouette}
 fviz_silhouette(silhouette(chosen_fanny), main="Silhouette plot for Fuzzy clustering")
 fanny_sil = silhouette(chosen_fanny)[, 3]
 fanny_neg_sil_index = which(fanny_sil < 0)
-print("Fuzze Misclassified States:")
+print("Fuzzy Misclassified States:")
 print(row.names(dataset_2)[fanny_neg_sil_index])
 ```
+
+9 states appear to be mis-classified based on the silhouette diagnostic plot, indicating poor clustering.
 
 ### Gaussian Mixture Model
 
@@ -373,9 +384,13 @@ gmm <- Mclust(dataset_2)
 fviz_cluster(gmm, data = scale(dataset_2), main = "Gaussian Mixture Model of US Voting Data")
 ```
 
+While the Gaussian Mixture Model has the same number of clusters as the Fuzzy Clustering model, the clusters are completely different with the GMM having a small cluster of Republican states and large cluster of Democratic, Republican, and Moderate states.
+
 ```{r gmm_corrplot}
-corrplot(gmm$z)
+corrplot(gmm$z, is.corr = F)
 ```
+
+Unlike the Fuzzy Clustering, only Virginia appears to have similar probabilities of being in each cluster which makes sense since it is closest to the border between two clusters.
 
 ## Problem 2e: Density-based clustering
 
@@ -389,3 +404,5 @@ abline(chosen_eps,0,lty=2,lwd=2,col="red") # added after seeing kNN plot
 chosen_dbscan <- dbscan(dataset_2, chosen_eps, minPts = 5)
 fviz_cluster(chosen_dbscan, data = scale(dataset_2), main = "DBScan Clustering of US Voting Data")
 ```
+
+The DBScan selects one cluster as the optimal number of clusters, which aligns with some of the previous methods. However, it does mark some of the records as outliers, specifically states that appear to be very Democratic (Massachusetts and Rhode Island) or Republican (Mississippi and Alabama)
